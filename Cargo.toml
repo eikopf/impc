@@ -7,4 +7,5 @@ edition = "2021"
 
 [dependencies]
 anyerror = "0.1.12"
+argh = "0.1.12"
 nom = "7.1.3"
