@@ -6,7 +6,7 @@ use nom::{
     bytes::streaming::{tag, take_while},
     character::{
         is_alphanumeric,
-        streaming::{char, multispace1, u64},
+        streaming::{char, multispace0, u64},
     },
     combinator::{all_consuming, verify},
     error::VerboseError,
@@ -92,7 +92,7 @@ pub type LexResult<'src> = IResult<&'src str, Token<'src>, VerboseError<&'src st
 /// either returning it completely or producing a [`VerboseError`].
 pub fn parse_tokens(input: &str) -> Result<Vec<Token<'_>>, VerboseError<String>> {
     all_consuming(many0(alt((
-        whitespace,
+        whitespace0,
         skip,
         semicolon,
         left_paren,
@@ -128,8 +128,11 @@ pub fn parse_tokens(input: &str) -> Result<Vec<Token<'_>>, VerboseError<String>>
 }
 
 /// Parses a [`Token::Whitespace`] from `input`.
-fn whitespace(input: &str) -> LexResult<'_> {
-    multispace1(input).map(|(tail, _)| (tail, Token::Whitespace))
+///
+/// Note in particular that this will return an
+/// error on the empty string.
+fn whitespace0(input: &str) -> LexResult<'_> {
+    multispace0(input).map(|(tail, _)| (tail, Token::Whitespace))
 }
 
 /// Parses a [`Token::Semicolon`] from `input`.
@@ -303,4 +306,70 @@ fn var(input: &str) -> LexResult<'_> {
 fn int(input: &str) -> LexResult<'_> {
     u64.parse(input)
         .map(|(tail, value)| (tail, Token::Int(value)))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn whitespace0_parser_is_correct() {
+        assert!(whitespace0(" \t\r hello").unwrap().0 == "hello");
+        assert!(whitespace0("hello \t\r").is_ok_and(|(_, token)| token == Token::Whitespace));
+        assert!(whitespace0("").is_err());
+    }
+
+    #[test]
+    fn semicolon_parser_is_correct() {
+        assert!(semicolon(";").is_ok_and(|res| res == ("", Token::Semicolon)));
+        assert!(semicolon(";hjk").is_ok_and(|res| res == ("hjk", Token::Semicolon)));
+        assert!(semicolon("world;").is_err());
+    }
+
+    #[test]
+    fn paren_parsers_are_correct() {
+        assert!(left_paren("(").is_ok_and(|res| res == ("", Token::LeftParen)));
+        assert!(right_paren(")").is_ok_and(|res| res == ("", Token::RightParen)));
+    }
+
+    #[test]
+    fn skip_parser_is_correct() {
+        assert!(skip("skip").is_ok_and(|res| res == ("", Token::Skip)));
+        assert!(skip("junkskip").is_err());
+    }
+
+    #[test]
+    fn assign_parser_is_correct() {
+        assert!(assign(":=").is_ok_and(|res| res == ("", Token::Assign)));
+    }
+
+    #[test]
+    fn branch_parsers_are_correct() {
+        assert!(r#if("if").is_ok_and(|res| res == ("", Token::If)));
+        assert!(then("then").is_ok_and(|res| res == ("", Token::Then)));
+        assert!(r#else("else").is_ok_and(|res| res == ("", Token::Else)));
+        assert!(fi("fi").is_ok_and(|res| res == ("", Token::Fi)));
+    }
+
+    #[test]
+    fn loop_parsers_are_correct() {
+        assert!(r#while("while").is_ok_and(|res| res == ("", Token::While)));
+        assert!(r#do("do").is_ok_and(|res| res == ("", Token::Do)));
+        assert!(od("od").is_ok_and(|res| res == ("", Token::Od)));
+    }
+
+    #[test]
+    fn arithmetic_parsers_are_correct() {
+        assert!(star("*").is_ok_and(|res| res == ("", Token::Star)));
+        assert!(plus("+").is_ok_and(|res| res == ("", Token::Plus)));
+        assert!(minus("-").is_ok_and(|res| res == ("", Token::Minus)));
+    }
+
+    #[test]
+    fn var_parser_is_correct() {
+        assert!(var("Var_name trailing")
+            .is_ok_and(|res| res == (" trailing", Token::Var(Var(YarnBox::from("Var_name"))))));
+
+        assert!(var("_illegal_name").is_err());
+    }
 }
