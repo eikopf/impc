@@ -83,7 +83,7 @@ pub struct Tokens<'src, T = usize> {
     tokens: Box<[Token<'src, T>]>,
 }
 
-impl<'buf, 'src, T> Deref for Tokens<'src, T> {
+impl<'src, T> Deref for Tokens<'src, T> {
     type Target = [Token<'src, T>];
 
     fn deref(&self) -> &Self::Target {
@@ -95,7 +95,9 @@ impl<'src, T: FromStr> TryFrom<&'src str> for Tokens<'src, T> {
     type Error = VerboseError<&'src str>;
 
     fn try_from(value: &'src str) -> Result<Self, Self::Error> {
-        parse_tokens(value).map(|tokens| Self { tokens: tokens.into_boxed_slice() })
+        parse_tokens(value).map(|tokens| Self {
+            tokens: tokens.into_boxed_slice(),
+        })
     }
 }
 
@@ -149,6 +151,27 @@ impl<'buf, 'src, T: Eq> Compare<Token<'src, T>> for TokensRef<'buf, 'src, T> {
     }
 
     fn compare_no_case(&self, t: Token<'src, T>) -> nom::CompareResult {
+        self.compare(t)
+    }
+}
+
+// the "l" and "r" suffixes are associated with the positions of the operands
+// (left and right respectively)
+impl<'bufl, 'bufr, 'srcl, 'srcr, T: Eq> Compare<TokensRef<'bufr, 'srcr, T>>
+    for TokensRef<'bufl, 'srcl, T>
+{
+    #[inline]
+    fn compare(&self, t: TokensRef<'bufr, 'srcr, T>) -> nom::CompareResult {
+        // we look for the first index where self and t differ
+        match self.iter().zip(t.iter()).position(|(left, right)| left != right) {
+            Some(_) => nom::CompareResult::Error,
+            None if self.len() < t.len() => nom::CompareResult::Incomplete,
+            None => nom::CompareResult::Ok,
+        }
+    }
+
+    fn compare_no_case(&self, t: TokensRef<'bufr, 'srcr, T>) -> nom::CompareResult {
+        // tokens have no concept of casing, so this just transparently invokes Compare::compare
         self.compare(t)
     }
 }
