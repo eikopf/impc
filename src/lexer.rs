@@ -3,8 +3,7 @@
 use std::str::FromStr;
 
 use nom::{
-    branch::alt, combinator::all_consuming, error::VerboseError, multi::many0, Finish, IResult,
-    Parser,
+    branch::alt, character::complete::multispace0, combinator::all_consuming, error::VerboseError, multi::many0, sequence::delimited, Finish, IResult, Parser
 };
 
 use token::Token;
@@ -20,13 +19,11 @@ pub type LexResult<'src, T> = IResult<&'src str, Token<'src, T>, VerboseError<&'
 /// Attempts to parse the entirety of `input` into a `Vec<Token<'_, T>>`,
 /// either returning it completely or producing a [`VerboseError`].
 pub fn parse_tokens<T: FromStr>(input: &str) -> Result<Vec<Token<'_, T>>, VerboseError<&str>> {
-    all_consuming(many0(alt((
-        symbol::whitespace,
-        symbol::glyph,
-        symbol::keyword,
-        int::int,
-        var::var,
-    ))))
+    all_consuming(many0(delimited(
+        multispace0,
+        alt((symbol::glyph, symbol::keyword, int::int, var::var)),
+        multispace0,
+    )))
     .parse(input)
     .finish()
     .map(|(_tail, vec)| {

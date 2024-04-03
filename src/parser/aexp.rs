@@ -21,10 +21,10 @@
 //! alternative parsing methods (like e.g. Pratt parsing)
 //! which mandate additional precedence-related bookkeeping.
 //!
-//! ```bnf
+//! ```raw
 //! aexp ::=
-//!       factor '+' factor
-//!     | factor '-' factor
+//!       factor '-' factor
+//!     | factor '+' factor
 //!     | factor
 //!
 //! factor ::=
@@ -38,17 +38,16 @@
 //! ```
 
 use nom::{
-    branch::alt,
-    bytes::complete::tag,
-    combinator::fail,
-    sequence::{delimited, separated_pair},
-    IResult, InputTake, Parser,
+    branch::alt, bytes::complete::tag, combinator::fail, sequence::delimited, IResult, InputTake,
+    Parser,
 };
 
 use crate::lexer::{
     token::{Token, TokensRef},
     var::Var,
 };
+
+use super::util::{binary_expr, unbox2};
 
 /// An arithmetic expression, consisting of
 /// - variables ([`Var`]s);
@@ -58,7 +57,7 @@ use crate::lexer::{
 /// - subtraction expressions.
 ///
 /// The [`Display`](std::fmt::Display) implementation
-/// on this type produces the appropriate lisp-style
+/// on this type produces an appropriate lisp-style
 /// s-expression.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Aexp<'src, T = usize> {
@@ -94,29 +93,29 @@ impl<'src, T: std::fmt::Display> std::fmt::Display for Aexp<'src, T> {
 type AexpResult<'buf, 'src, T = usize> = IResult<TokensRef<'buf, 'src, T>, Aexp<'src, T>>;
 
 /// Parses a complete [`Aexp`] from `input`.
-pub fn aexp<'buf, 'src, T: 'src + Clone + Eq>(
+pub fn aexp<'buf, 'src, T: 'buf + Clone + Eq>(
     input: TokensRef<'buf, 'src, T>,
 ) -> AexpResult<'buf, 'src, T> {
     alt((
-        binary_expr(factor, Token::Plus, factor, Aexp::Add),
-        binary_expr(factor, Token::Minus, factor, Aexp::Sub),
+        binary_expr(factor, Token::Minus, factor, unbox2(Aexp::Sub)),
+        binary_expr(factor, Token::Plus, factor, unbox2(Aexp::Add)),
         factor,
     ))
     .parse(input)
 }
 
 /// Parses a high-precedence term, i.e. either a [`term`] or an [`Aexp::Mul`].
-fn factor<'buf, 'src, T: 'src + Clone + Eq>(
+fn factor<'buf, 'src, T: 'buf + Clone + Eq>(
     input: TokensRef<'buf, 'src, T>,
 ) -> AexpResult<'buf, 'src, T> {
-    alt((binary_expr(term, Token::Star, term, Aexp::Mul), term)).parse(input)
+    alt((binary_expr(term, Token::Star, term, unbox2(Aexp::Mul)), term)).parse(input)
 }
 
 /// Parses a term from `input`, where a term is considered to be one of
 /// - an [`Aexp::Int`];
 /// - an [`Aexp::Var`];
 /// - a parenthesised expression.
-fn term<'buf, 'src, T: 'src + Clone + Eq>(
+fn term<'buf, 'src, T: 'buf + Clone + Eq>(
     input: TokensRef<'buf, 'src, T>,
 ) -> AexpResult<'buf, 'src, T> {
     alt((int, var, parens)).parse(input)
@@ -145,35 +144,15 @@ fn var<'buf, 'src, T: Clone>(input: TokensRef<'buf, 'src, T>) -> AexpResult<'buf
 }
 
 /// Parses a parenthesised [`Aexp`], with no explicit precedence handling.
-fn parens<'buf, 'src, T: 'src + Clone + Eq>(
+fn parens<'buf, 'src, T: 'buf + Clone + Eq>(
     input: TokensRef<'buf, 'src, T>,
 ) -> AexpResult<'buf, 'src, T> {
     delimited(tag(Token::LeftParen), aexp, tag(Token::RightParen)).parse(input)
 }
 
-/// The type of a function that constructs new [`Aexp`] from subexpressions.
-type AexpCons<'src, T = usize> = fn(Box<Aexp<'src, T>>, Box<Aexp<'src, T>>) -> Aexp<'src, T>;
-
-/// A parser matching the sequence `(lhs, operator, rhs)`, which
-/// uses the given `constructor` to produce a new [`Aexp`] in the
-/// success case.
-const fn binary_expr<'buf, 'src: 'buf, T: 'src + Clone + Eq>(
-    lhs: impl FnMut(TokensRef<'buf, 'src, T>) -> AexpResult<'buf, 'src, T> + Copy,
-    operator: Token<'src, T>,
-    rhs: impl FnMut(TokensRef<'buf, 'src, T>) -> AexpResult<'buf, 'src, T> + Copy,
-    constructor: AexpCons<'src, T>,
-) -> impl FnMut(TokensRef<'buf, 'src, T>) -> AexpResult<'buf, 'src, T> {
-    move |input| {
-        // this clone would be unnecessary if Token was Copy
-        separated_pair(lhs, tag(operator.clone()), rhs)
-            .parse(input)
-            .map(|(tail, (lhs, rhs))| (tail, constructor(Box::new(lhs), Box::new(rhs))))
-    }
-}
-
 #[cfg(test)]
 mod tests {
-    use nom::bytes::complete::take;
+    use nom::sequence::separated_pair;
 
     use crate::lexer::token::Tokens;
 
@@ -189,9 +168,7 @@ mod tests {
         assert_eq!(
             tail,
             TokensRef::new(&vec![
-                Token::Whitespace,
                 Token::Star,
-                Token::Whitespace,
                 Token::Var(Var::from("X"))
             ])
         );
@@ -211,14 +188,12 @@ mod tests {
         assert_eq!(
             tail,
             TokensRef::new(&vec![
-                Token::Whitespace,
                 Token::Star,
-                Token::Whitespace,
                 Token::Var(Var::from("Y"))
             ])
         );
 
-        let (tail, (lhs, rhs)) = separated_pair(var, take(3usize), var)
+        let (tail, (lhs, rhs)) = separated_pair(var, tag(Token::Star), var)
             .parse(TokensRef::new(&tokens))
             .unwrap();
         dbg!(lhs.clone(), rhs.clone());

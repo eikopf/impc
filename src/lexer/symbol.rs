@@ -2,17 +2,12 @@
 
 use nom::{
     branch::alt,
-    character::complete::{char, multispace1},
+    character::complete::char,
     bytes::complete::tag,
     Parser,
 };
 
 use super::{LexResult, token::Token};
-
-/// Parses a [`Token::Whitespace`] from `input`.
-pub fn whitespace<T>(input: &str) -> LexResult<'_, T> {
-    multispace1(input).map(|(tail, _)| (tail, Token::Whitespace))
-}
 
 /// Parses a non-keyword symbol from `input`.
 pub fn glyph<T>(input: &str) -> LexResult<'_, T> {
@@ -193,12 +188,6 @@ fn or<T>(input: &str) -> LexResult<'_, T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn whitespace_parser_is_correct() {
-        assert!(whitespace::<usize>(" \t\r hello").unwrap().0 == "hello");
-        assert!(whitespace::<usize>("hello \t\r").is_err());
-    }
 
     #[test]
     fn semicolon_parser_is_correct() {
