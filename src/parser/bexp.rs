@@ -144,5 +144,12 @@ mod tests {
         
         assert!(tail.is_empty());
         assert_eq!(prop, Bexp::NotEq(Aexp::Int(13), Aexp::Int(12)));
+
+        let tokens = Tokens::<'_, usize>::try_from("X = 6").unwrap();
+        let (tail, prop) = proposition(tokens.as_ref()).unwrap();
+        dbg!(tail.clone(), prop.clone());
+
+        assert!(tail.is_empty());
+        assert_eq!(prop, Bexp::Eq(Aexp::Var("X".into()), Aexp::Int(6)));
     }
 }
