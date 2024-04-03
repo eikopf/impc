@@ -34,7 +34,7 @@ use nom::{
 use crate::lexer::token::{Token, TokensRef};
 
 use super::{
-    aexp::{self, aexp, Aexp},
+    aexp::{aexp, Aexp},
     util::{binary_expr, unbox2},
 };
 
@@ -60,12 +60,33 @@ pub enum Bexp<'src, T = usize> {
     Or(Box<Self>, Box<Self>),
 }
 
+impl<'src, T: std::fmt::Display> std::fmt::Display for Bexp<'src, T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                Self::Atom(atom) => format!("{atom}"),
+                Self::Eq(lhs, rhs) => format!("(= {lhs} {rhs})"),
+                Self::NotEq(lhs, rhs) => format!("(!= {lhs} {rhs})"),
+                Self::LessThan(lhs, rhs) => format!("(< {lhs} {rhs})"),
+                Self::GreaterThan(lhs, rhs) => format!("(> {lhs} {rhs})"),
+                Self::Not(inner) => format!("(not {inner})"),
+                Self::And(lhs, rhs) => format!("(and {lhs} {rhs})"),
+                Self::Or(lhs, rhs) => format!("(or {lhs} {rhs})"),
+            }
+        )
+    }
+}
+
 /// The return type of parsers in the [`crate::parser::bexp`] module.
 type BexpResult<'buf, 'src, T = usize> = IResult<TokensRef<'buf, 'src, T>, Bexp<'src, T>>;
 
 /// Parses a [`Bexp`] from `input`.
-pub fn bexp<'buf, 'src, T>(input: TokensRef<'buf, 'src, T>) -> BexpResult<'buf, 'src, T> {
-    todo!()
+pub fn bexp<'buf, 'src, T: Clone + Eq>(
+    input: TokensRef<'buf, 'src, T>,
+) -> BexpResult<'buf, 'src, T> {
+    alt((connective, not, proposition)).parse(input)
 }
 
 /// Parses a [`Bexp::Atom`] from `input`.
@@ -78,7 +99,7 @@ fn atom<'buf, 'src, T: Clone>(input: TokensRef<'buf, 'src, T>) -> BexpResult<'bu
 }
 
 /// Parses a logical connective (either [`Bexp::And`] or [`Bexp::Or`]) from `input`.
-fn connective<'buf, 'src, T: 'buf + Clone + Eq>(
+fn connective<'buf, 'src, T: Clone + Eq>(
     input: TokensRef<'buf, 'src, T>,
 ) -> BexpResult<'buf, 'src, T> {
     delimited(
@@ -93,14 +114,15 @@ fn connective<'buf, 'src, T: 'buf + Clone + Eq>(
 }
 
 fn not<'buf, 'src, T: Clone + Eq>(input: TokensRef<'buf, 'src, T>) -> BexpResult<'buf, 'src, T> {
-    preceded(tag(Token::Not), bexp).parse(input)
+    preceded(tag(Token::Not), bexp)
+        .parse(input)
+        .map(|(tail, expr)| (tail, Bexp::Not(Box::new(expr))))
 }
 
 /// Parses a proposition (i.e. nonrecursive variant of [`Bexp`]) from `input`.
-fn proposition<'buf, 'src, T: Clone + Eq + std::fmt::Debug>(
+fn proposition<'buf, 'src, T: Clone + Eq>(
     input: TokensRef<'buf, 'src, T>,
 ) -> BexpResult<'buf, 'src, T> {
-    eprintln!("[proposition] hit proposition with input {:?}", input);
     let not_eq_tokens = TokensRef::new(&[Token::LeftAngleBracket, Token::RightAngleBracket]);
 
     alt((
@@ -141,8 +163,43 @@ mod tests {
         let tokens = Tokens::<'_, usize>::try_from("13 <> 12").unwrap();
         let (tail, prop) = proposition(tokens.as_ref()).unwrap();
         dbg!(tail.clone(), prop.clone());
-        
+
         assert!(tail.is_empty());
         assert_eq!(prop, Bexp::NotEq(Aexp::Int(13), Aexp::Int(12)));
+
+        let tokens = Tokens::<'_, usize>::try_from("X = Y - 1").unwrap();
+        let (tail, prop) = proposition(tokens.as_ref()).unwrap();
+        dbg!(tail.clone(), prop.clone());
+
+        assert!(tail.is_empty());
+        assert_eq!(
+            prop,
+            Bexp::Eq(
+                Aexp::Var("X".into()),
+                Aexp::Sub(Box::new(Aexp::Var("Y".into())), Box::new(Aexp::Int(1)))
+            )
+        );
+    }
+
+    #[test]
+    fn check_bexp_parser() {
+        let tokens = Tokens::<'_, usize>::try_from("not (X = 1 or Y > Z)").unwrap();
+        let (tail, expr) = bexp(tokens.as_ref()).unwrap();
+        eprintln!("parsed expr: {}", expr.clone());
+
+        // all tokens should have been consumed
+        assert!(tail.is_empty());
+
+        // the expression should be (not (or (= X 1) (> Y Z)))
+        assert_eq!(
+            expr,
+            Bexp::Not(Box::new(Bexp::Or(
+                Box::new(Bexp::Eq(Aexp::Var("X".into()), Aexp::Int(1))),
+                Box::new(Bexp::GreaterThan(
+                    Aexp::Var("Y".into()),
+                    Aexp::Var("Z".into())
+                ))
+            )))
+        );
     }
 }
