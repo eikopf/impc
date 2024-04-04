@@ -183,7 +183,7 @@ mod tests {
 
     #[test]
     fn check_bexp_parser() {
-        let tokens = Tokens::<'_, usize>::try_from("not (X = 1 and Y > Z)").unwrap();
+        let tokens = Tokens::<'_, usize>::try_from("not (X = 1 or Y > Z)").unwrap();
         let (tail, expr) = bexp(tokens.as_ref()).unwrap();
         eprintln!("parsed expr: {}", expr.clone());
 
