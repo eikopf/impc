@@ -80,7 +80,7 @@ impl<'src, T: std::fmt::Display> std::fmt::Display for Bexp<'src, T> {
 }
 
 /// The return type of parsers in the [`crate::parser::bexp`] module.
-type BexpResult<'buf, 'src, T = usize> = IResult<TokensRef<'buf, 'src, T>, Bexp<'src, T>>;
+pub type BexpResult<'buf, 'src, T = usize> = IResult<TokensRef<'buf, 'src, T>, Bexp<'src, T>>;
 
 /// Parses a [`Bexp`] from `input`.
 pub fn bexp<'buf, 'src, T: Clone + Eq>(

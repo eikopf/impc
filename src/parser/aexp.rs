@@ -90,7 +90,7 @@ impl<'src, T: std::fmt::Display> std::fmt::Display for Aexp<'src, T> {
 }
 
 /// The return type of parsers in the [`crate::parser::aexp`] module.
-type AexpResult<'buf, 'src, T = usize> = IResult<TokensRef<'buf, 'src, T>, Aexp<'src, T>>;
+pub type AexpResult<'buf, 'src, T = usize> = IResult<TokensRef<'buf, 'src, T>, Aexp<'src, T>>;
 
 /// Parses a complete [`Aexp`] from `input`.
 pub fn aexp<'buf, 'src, T: 'buf + Clone + Eq>(

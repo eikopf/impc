@@ -1,36 +1,31 @@
 //! Common functionality for the [`crate::parser`] submodules.
 
 use nom::{
-    bytes::complete::tag, error::ParseError, sequence::separated_pair, Compare, InputLength, Parser,
+    bytes::complete::tag, error::ParseError, sequence::separated_pair, Compare, InputLength, InputTake, Parser
 };
-
-use crate::lexer::token::TokensRef;
 
 /// Returns a [`Parser`] that matches the pair `(lhs, rhs)` separated
 /// by `operator`, and then invokes `constructor` to produce a result
 /// in the successful case.
 ///
 /// # Generic Parameters
-/// - `'buf` and `'src` are the lifetime parameters of the argument to the returned parser;
-/// - `T` is the operant type of the argument to the returned parser;
+/// - `I` is the input type of the returned parser;
 /// - `L` is the return type of `lhs`;
 /// - `Op` is the type of `operator`;
 /// - `R` is the return type of `rhs`;
-/// - `Out` is the return type of the returned parser;
+/// - `O` is the return type of the returned parser;
 /// - `E` is the error type of the returned parser.
 #[inline(always)]
-pub const fn binary_expr<'buf, 'src, T, L, Op, R, Out, E>(
-    lhs: impl Parser<TokensRef<'buf, 'src, T>, L, E> + Copy,
+pub const fn binary_expr<I, L, Op, R, O, E>(
+    lhs: impl Parser<I, L, E> + Copy,
     operator: Op,
-    rhs: impl Parser<TokensRef<'buf, 'src, T>, R, E> + Copy,
-    constructor: impl FnOnce(L, R) -> Out + Clone,
-) -> impl Parser<TokensRef<'buf, 'src, T>, Out, E>
+    rhs: impl Parser<I, R, E> + Copy,
+    constructor: impl FnOnce(L, R) -> O + Clone,
+) -> impl Parser<I, O, E>
 where
-    'src: 'buf,
-    T: 'buf + Clone,
     Op: Clone + InputLength,
-    TokensRef<'buf, 'src, T>: Compare<Op>,
-    E: ParseError<TokensRef<'buf, 'src, T>>,
+    I: Compare<Op> + InputTake,
+    E: ParseError<I>,
 {
     move |input| {
         separated_pair(lhs, tag(operator.clone()), rhs)
