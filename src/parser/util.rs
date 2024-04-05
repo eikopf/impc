@@ -38,6 +38,6 @@ where
 #[inline(always)]
 pub const fn unbox2<L, R, O>(
     f: impl FnOnce(Box<L>, Box<R>) -> O + Clone,
-) -> impl FnMut(L, R) -> O + Clone {
+) -> impl FnOnce(L, R) -> O + Clone {
     move |left, right| f.clone()(Box::new(left), Box::new(right))
 }

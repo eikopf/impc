@@ -15,8 +15,7 @@ pub mod bexp;
 pub mod cmd;
 mod util;
 
-/// The error type thrown when trying to parse an [`Ast`] from
-/// [`Tokens`](crate::lexer::token::Tokens).
+/// The error type thrown when trying to parse an [`Ast`] from [`Tokens`](crate::lexer::token::Tokens).
 #[derive(Debug, Error, PartialEq, Eq, Clone, Copy)]
 pub struct AstParseError<'buf, 'src, T> {
     /// The position in the input where this error ocurred.
