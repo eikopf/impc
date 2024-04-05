@@ -120,6 +120,7 @@ fn connective<'buf, 'src, T: Clone + Eq>(
     .parse(input)
 }
 
+/// Parses a [`Bexp::Not`] from `input`.
 fn not<'buf, 'src, T: Clone + Eq>(input: TokensRef<'buf, 'src, T>) -> BexpResult<'buf, 'src, T> {
     preceded(tag(Token::Not), bexp)
         .parse(input)

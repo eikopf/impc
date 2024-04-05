@@ -24,7 +24,7 @@ pub struct AstParseError<'buf, 'src, T> {
 
 /// An abstract syntax tree for an IMP program.
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct Ast<V, T = usize> {
+pub struct Ast<V = Var<'static>, T = usize> {
     /// The root of this tree.
     root: Cmd<V, T>,
 }
@@ -59,8 +59,8 @@ mod tests {
 
     #[test]
     fn test_ast_map_impl() {
-        let tokens = Tokens::<'_, usize>::try_from("X := 1; Y := 2; Z := 3").unwrap();
-        let ast = Ast::<_, usize>::try_from(tokens.as_ref()).unwrap();
+        let tokens: Tokens = "X := 1; Y := 2; Z := 3".try_into().unwrap();
+        let ast: Ast = tokens.as_ref().try_into().unwrap();
         dbg!(ast.clone());
 
         fn count(node: Cmd<Var<'_>>) -> usize {

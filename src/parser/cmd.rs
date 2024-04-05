@@ -95,12 +95,12 @@ where
             f,
             "{}",
             match self {
-                Self::Skip => format!("(skip)"),
+                Self::Skip => "(skip)".to_string(),
                 Self::Assign(var, expr) => format!("(assign {var} {expr})"),
                 Self::Seq(first, second) => format!("{first}\n{second}"),
                 Self::While(cond, inner) => format!(
                     "(loop (while {cond})\n\t{0})",
-                    format!("{inner}").replace("\n", "\n\t")
+                    format!("{inner}").replace('\n', "\n\t")
                 ),
                 Self::If {
                     cond,
@@ -108,8 +108,8 @@ where
                     false_case,
                 } => format!(
                     "(if {cond}\n\t{0}\n\t{1})",
-                    format!("({true_case})").replace("\n", "\n\t"),
-                    format!("({false_case})").replace("\n", "\n\t")
+                    format!("({true_case})").replace('\n', "\n\t"),
+                    format!("({false_case})").replace('\n', "\n\t")
                 ),
             }
         )
