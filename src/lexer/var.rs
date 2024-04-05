@@ -12,6 +12,12 @@ use super::{LexResult, token::Token};
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Var<'src>(YarnBox<'src, str>);
 
+impl<'src> std::fmt::Display for Var<'src> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
 impl<'src> From<&'src str> for Var<'src> {
     fn from(value: &'src str) -> Self {
         Self(YarnBox::from(value))

@@ -3,7 +3,8 @@
 use std::str::FromStr;
 
 use nom::{
-    branch::alt, character::complete::multispace0, combinator::all_consuming, error::VerboseError, multi::many0, sequence::delimited, Finish, IResult, Parser
+    branch::alt, character::complete::multispace0, combinator::all_consuming, error::VerboseError,
+    multi::many0, sequence::delimited, Finish, IResult, Parser,
 };
 
 use token::Token;

@@ -100,6 +100,16 @@ impl<'src, T: FromStr> TryFrom<&'src str> for Tokens<'src, T> {
 }
 
 impl<'src, T> Tokens<'src, T> {
+    /// Creates a new [`Tokens`] by cloning the given `tokens`.
+    pub fn new(tokens: &[Token<'src, T>]) -> Self
+    where
+        T: Clone,
+    {
+        Self {
+            tokens: tokens.to_vec().into_boxed_slice(),
+        }
+    }
+
     /// Returns a [`TokensRef`] pointing at the [`Token`] buffer owned by `self`.
     pub fn as_ref<'buf>(&'buf self) -> TokensRef<'buf, 'src, T> {
         self.tokens.as_ref().into()
@@ -161,7 +171,11 @@ impl<'bufl, 'bufr, 'srcl, 'srcr, T: Eq> Compare<TokensRef<'bufr, 'srcr, T>>
     #[inline]
     fn compare(&self, t: TokensRef<'bufr, 'srcr, T>) -> nom::CompareResult {
         // we look for the first index where self and t differ
-        match self.iter().zip(t.iter()).position(|(left, right)| left != right) {
+        match self
+            .iter()
+            .zip(t.iter())
+            .position(|(left, right)| left != right)
+        {
             Some(_) => nom::CompareResult::Error,
             None if self.len() < t.len() => nom::CompareResult::Incomplete,
             None => nom::CompareResult::Ok,
