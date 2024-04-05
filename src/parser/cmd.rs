@@ -112,7 +112,7 @@ impl<'src, T: std::fmt::Display> std::fmt::Display for Cmd<'src, T> {
     }
 }
 
-/// The normal return type of parsers in the [`crate::parser::cmd`] module.
+/// The normal return type of parsers in the [`mod@crate::parser::cmd`] module.
 pub type CmdResult<'buf, 'src, T> = IResult<TokensRef<'buf, 'src, T>, Cmd<'src, T>>;
 
 /// Parses an individual [`Cmd`] from `input`.

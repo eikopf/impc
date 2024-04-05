@@ -1,7 +1,8 @@
 //! Common functionality for the [`crate::parser`] submodules.
 
 use nom::{
-    bytes::complete::tag, error::ParseError, sequence::separated_pair, Compare, InputLength, InputTake, Parser
+    bytes::complete::tag, error::ParseError, sequence::separated_pair, Compare, InputLength,
+    InputTake, Parser,
 };
 
 /// Returns a [`Parser`] that matches the pair `(lhs, rhs)` separated
