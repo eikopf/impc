@@ -6,7 +6,7 @@
 use nom::Finish;
 use thiserror::Error;
 
-use crate::lexer::token::TokensRef;
+use crate::lexer::{token::TokensRef, var::Var};
 
 use self::cmd::{cmd, Cmd};
 
@@ -24,12 +24,12 @@ pub struct AstParseError<'buf, 'src, T> {
 
 /// An abstract syntax tree for an IMP program.
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct Ast<'src, T = usize> {
+pub struct Ast<V, T = usize> {
     /// The root of this tree.
-    root: Cmd<'src, T>,
+    root: Cmd<V, T>,
 }
 
-impl<'buf, 'src, T: Clone + Eq> TryFrom<TokensRef<'buf, 'src, T>> for Ast<'src, T> {
+impl<'buf, 'src, T: Clone + Eq> TryFrom<TokensRef<'buf, 'src, T>> for Ast<Var<'src>, T> {
     type Error = AstParseError<'buf, 'src, T>;
 
     fn try_from(value: TokensRef<'buf, 'src, T>) -> Result<Self, Self::Error> {
@@ -41,11 +41,11 @@ impl<'buf, 'src, T: Clone + Eq> TryFrom<TokensRef<'buf, 'src, T>> for Ast<'src, 
     }
 }
 
-impl<'src, T> Ast<'src, T> {
+impl<V, T> Ast<V, T> {
     /// Consumes `self` and applies the given function `f` to its `root`.
     pub fn map<F, U>(self, f: F) -> U
     where
-        F: FnOnce(Cmd<'src, T>) -> U,
+        F: FnOnce(Cmd<V, T>) -> U,
     {
         f(self.root)
     }
@@ -60,10 +60,10 @@ mod tests {
     #[test]
     fn test_ast_map_impl() {
         let tokens = Tokens::<'_, usize>::try_from("X := 1; Y := 2; Z := 3").unwrap();
-        let ast = Ast::<'_, usize>::try_from(tokens.as_ref()).unwrap();
+        let ast = Ast::<_, usize>::try_from(tokens.as_ref()).unwrap();
         dbg!(ast.clone());
 
-        fn count(node: Cmd) -> usize {
+        fn count(node: Cmd<Var<'_>>) -> usize {
             // recursive definition:
             // the number of nodes in a tree is 1 + the number of nodes in all subtrees
             1 + match node {

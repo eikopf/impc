@@ -31,7 +31,10 @@ use nom::{
     IResult, Parser,
 };
 
-use crate::lexer::token::{Token, TokensRef};
+use crate::lexer::{
+    token::{Token, TokensRef},
+    var::Var,
+};
 
 use super::{
     aexp::{aexp, Aexp},
@@ -40,18 +43,18 @@ use super::{
 
 /// A boolean expression.
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub enum Bexp<'src, T = usize> {
+pub enum Bexp<V, T = usize> {
     /// A boolean value.
     Atom(bool),
     /// The equality comparison, corresponding to [`Token::Equals`].
-    Eq(Aexp<'src, T>, Aexp<'src, T>),
+    Eq(Aexp<V, T>, Aexp<V, T>),
     /// The inequality comparison, corresponding to the token sequence of [`Token::LeftAngleBracket`]
     /// followed by [`Token::RightAngleBracket`].
-    NotEq(Aexp<'src, T>, Aexp<'src, T>),
+    NotEq(Aexp<V, T>, Aexp<V, T>),
     /// The less-than comparison, corresponding to a single [`Token::LeftAngleBracket`].
-    LessThan(Aexp<'src, T>, Aexp<'src, T>),
+    LessThan(Aexp<V, T>, Aexp<V, T>),
     /// The greater-than comparison, corresponding to a single [`Token::RightAngleBracket`].
-    GreaterThan(Aexp<'src, T>, Aexp<'src, T>),
+    GreaterThan(Aexp<V, T>, Aexp<V, T>),
     /// The unary logical NOT operator, corresponding to [`Token::Not`].
     Not(Box<Self>),
     /// The binary logical AND operator, corresponding to [`Token::And`].
@@ -60,7 +63,11 @@ pub enum Bexp<'src, T = usize> {
     Or(Box<Self>, Box<Self>),
 }
 
-impl<'src, T: std::fmt::Display> std::fmt::Display for Bexp<'src, T> {
+impl<V, T> std::fmt::Display for Bexp<V, T>
+where
+    V: std::fmt::Display,
+    T: std::fmt::Display,
+{
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
@@ -80,7 +87,7 @@ impl<'src, T: std::fmt::Display> std::fmt::Display for Bexp<'src, T> {
 }
 
 /// The return type of parsers in the [`crate::parser::bexp`] module.
-pub type BexpResult<'buf, 'src, T = usize> = IResult<TokensRef<'buf, 'src, T>, Bexp<'src, T>>;
+pub type BexpResult<'buf, 'src, T = usize> = IResult<TokensRef<'buf, 'src, T>, Bexp<Var<'src>, T>>;
 
 /// Parses a [`Bexp`] from `input`.
 pub fn bexp<'buf, 'src, T: Clone + Eq>(
@@ -175,8 +182,8 @@ mod tests {
         assert_eq!(
             prop,
             Bexp::Eq(
-                Aexp::Var("X".into()),
-                Aexp::Sub(Box::new(Aexp::Var("Y".into())), Box::new(Aexp::Int(1)))
+                Aexp::var_from("X"),
+                Aexp::Sub(Box::new(Aexp::var_from("Y")), Box::new(Aexp::Int(1)))
             )
         );
     }
@@ -194,11 +201,8 @@ mod tests {
         assert_eq!(
             expr,
             Bexp::Not(Box::new(Bexp::Or(
-                Box::new(Bexp::Eq(Aexp::Var("X".into()), Aexp::Int(1))),
-                Box::new(Bexp::GreaterThan(
-                    Aexp::Var("Y".into()),
-                    Aexp::Var("Z".into())
-                ))
+                Box::new(Bexp::Eq(Aexp::var_from("X"), Aexp::Int(1))),
+                Box::new(Bexp::GreaterThan(Aexp::var_from("Y"), Aexp::var_from("Z")))
             )))
         );
     }

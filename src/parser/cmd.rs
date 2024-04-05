@@ -63,29 +63,33 @@ use super::{
 
 /// An IMP command.
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub enum Cmd<'src, T = usize> {
+pub enum Cmd<V, T = usize> {
     /// A no-op command, corresponding to [`Token::Skip`].
     Skip,
     /// A variable assignment command, corresponding to [`Token::Assign`].
-    Assign(Var<'src>, Aexp<'src, T>),
+    Assign(V, Aexp<V, T>),
     /// A (left-to-right) sequence of two IMP commands.
-    Seq(Box<Cmd<'src, T>>, Box<Cmd<'src, T>>),
+    Seq(Box<Cmd<V, T>>, Box<Cmd<V, T>>),
     /// A conditional command, introduced by [`Token::If`] and [`Token::Then`],
     /// and terminated by [`Token::Fi`].
     If {
         /// The boolean condition that appears between [`Token::If`] and [`Token::Then`].
-        cond: Bexp<'src, T>,
+        cond: Bexp<V, T>,
         /// The [`Cmd`] to be executed if `cond` evaluates to `true`.
-        true_case: Box<Cmd<'src, T>>,
+        true_case: Box<Cmd<V, T>>,
         /// The [`Cmd`] to be executed if `cond` evaluates to `false`.
-        false_case: Box<Cmd<'src, T>>,
+        false_case: Box<Cmd<V, T>>,
     },
     /// An iteration command, introduced by [`Token::While`] and [`Token::Do`], and
     /// terminated by [`Token::Od`].
-    While(Bexp<'src, T>, Box<Cmd<'src, T>>),
+    While(Bexp<V, T>, Box<Cmd<V, T>>),
 }
 
-impl<'src, T: std::fmt::Display> std::fmt::Display for Cmd<'src, T> {
+impl<V, T> std::fmt::Display for Cmd<V, T>
+where
+    V: std::fmt::Display,
+    T: std::fmt::Display,
+{
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
@@ -113,7 +117,7 @@ impl<'src, T: std::fmt::Display> std::fmt::Display for Cmd<'src, T> {
 }
 
 /// The normal return type of parsers in the [`mod@crate::parser::cmd`] module.
-pub type CmdResult<'buf, 'src, T> = IResult<TokensRef<'buf, 'src, T>, Cmd<'src, T>>;
+pub type CmdResult<'buf, 'src, T> = IResult<TokensRef<'buf, 'src, T>, Cmd<Var<'src>, T>>;
 
 /// Parses an individual [`Cmd`] from `input`.
 pub fn cmd<'buf, 'src, T: Clone + Eq>(input: TokensRef<'buf, 'src, T>) -> CmdResult<'buf, 'src, T> {
@@ -233,16 +237,16 @@ mod tests {
                 Box::new(Cmd::Assign("Y".into(), Aexp::Int(3))),
                 Box::new(Cmd::Seq(
                     Box::new(Cmd::While(
-                        Bexp::NotEq(Aexp::Var("X".into()), Aexp::Var("Y".into())),
+                        Bexp::NotEq(Aexp::var_from("X"), Aexp::var_from("Y")),
                         Box::new(Cmd::Seq(
-                            Box::new(Cmd::Assign("X".into(), Aexp::Var("Y".into()))),
+                            Box::new(Cmd::Assign("X".into(), Aexp::var_from("Y"))),
                             Box::new(Cmd::Seq(
                                 Box::new(Cmd::Assign("Y".into(), Aexp::Int(0))),
                                 Box::new(Cmd::Assign(
                                     "Z".into(),
                                     Aexp::Add(
-                                        Box::new(Aexp::Var("X".into())),
-                                        Box::new(Aexp::Var("Y".into()))
+                                        Box::new(Aexp::var_from("X")),
+                                        Box::new(Aexp::var_from("Y"))
                                     )
                                 ))
                             ))
@@ -264,14 +268,14 @@ mod tests {
         assert_eq!(
             program,
             Cmd::If {
-                cond: Bexp::LessThan(Aexp::Var("X".into()), Aexp::Int(13)),
+                cond: Bexp::LessThan(Aexp::var_from("X"), Aexp::Int(13)),
                 true_case: Box::new(Cmd::Seq(
                     Box::new(Cmd::Skip),
                     Box::new(Cmd::Seq(Box::new(Cmd::Skip), Box::new(Cmd::Skip)))
                 )),
                 false_case: Box::new(Cmd::Assign(
                     "Y".into(),
-                    Aexp::Sub(Box::new(Aexp::Var("Y".into())), Box::new(Aexp::Int(1)))
+                    Aexp::Sub(Box::new(Aexp::var_from("Y")), Box::new(Aexp::Int(1)))
                 )),
             }
         );

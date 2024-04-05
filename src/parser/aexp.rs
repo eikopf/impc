@@ -60,11 +60,11 @@ use super::util::{binary_expr, unbox2};
 /// on this type produces an appropriate lisp-style
 /// s-expression.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Aexp<'src, T = usize> {
+pub enum Aexp<V, T = usize> {
     /// An integer.
     Int(T),
     /// A variable name.
-    Var(Var<'src>),
+    Var(V),
     /// Binary addition.
     Add(Box<Self>, Box<Self>),
     /// Binary multiplication.
@@ -73,14 +73,14 @@ pub enum Aexp<'src, T = usize> {
     Sub(Box<Self>, Box<Self>),
 }
 
-impl<'src, T: std::fmt::Display> std::fmt::Display for Aexp<'src, T> {
+impl<V: std::fmt::Display, T: std::fmt::Display> std::fmt::Display for Aexp<V, T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
             "{}",
             match self {
-                Aexp::Int(int) => int.to_string(),
-                Aexp::Var(var) => var.get().to_string(),
+                Aexp::Int(int) => format!("{int}"),
+                Aexp::Var(var) => format!("{var}"),
                 Aexp::Add(lhs, rhs) => format!("(+ {lhs} {rhs})"),
                 Aexp::Mul(lhs, rhs) => format!("(* {lhs} {rhs})"),
                 Aexp::Sub(lhs, rhs) => format!("(- {lhs} {rhs})"),
@@ -89,8 +89,18 @@ impl<'src, T: std::fmt::Display> std::fmt::Display for Aexp<'src, T> {
     }
 }
 
+impl<V, T> Aexp<V, T> {
+    /// Constructs an [`Aexp::Var`] by cloning `var`.
+    pub fn var_from<'src>(var: &'src str) -> Self
+    where
+        V: From<&'src str>,
+    {
+        Self::Var(var.into())
+    }
+}
+
 /// The return type of parsers in the [`crate::parser::aexp`] module.
-pub type AexpResult<'buf, 'src, T = usize> = IResult<TokensRef<'buf, 'src, T>, Aexp<'src, T>>;
+pub type AexpResult<'buf, 'src, T = usize> = IResult<TokensRef<'buf, 'src, T>, Aexp<Var<'src>, T>>;
 
 /// Parses a complete [`Aexp`] from `input`.
 pub fn aexp<'buf, 'src, T: 'buf + Clone + Eq>(
@@ -108,7 +118,11 @@ pub fn aexp<'buf, 'src, T: 'buf + Clone + Eq>(
 fn factor<'buf, 'src, T: 'buf + Clone + Eq>(
     input: TokensRef<'buf, 'src, T>,
 ) -> AexpResult<'buf, 'src, T> {
-    alt((binary_expr(term, Token::Star, term, unbox2(Aexp::Mul)), term)).parse(input)
+    alt((
+        binary_expr(term, Token::Star, term, unbox2(Aexp::Mul)),
+        term,
+    ))
+    .parse(input)
 }
 
 /// Parses a term from `input`, where a term is considered to be one of
@@ -167,10 +181,7 @@ mod tests {
         assert_eq!(x, Aexp::Int(149usize));
         assert_eq!(
             tail,
-            TokensRef::new(&vec![
-                Token::Star,
-                Token::Var(Var::from("X"))
-            ])
+            TokensRef::new(&vec![Token::Star, Token::Var(Var::from("X"))])
         );
 
         let tokens = Tokens::<'_, usize>::try_from("X * 12").unwrap();
@@ -184,13 +195,10 @@ mod tests {
         let (tail, res) = var(TokensRef::new(&tokens)).unwrap();
         dbg!(tail.clone(), res.clone());
 
-        assert_eq!(res, Aexp::Var(Var::from("X")));
+        assert_eq!(res, Aexp::var_from("X"));
         assert_eq!(
             tail,
-            TokensRef::new(&vec![
-                Token::Star,
-                Token::Var(Var::from("Y"))
-            ])
+            TokensRef::new(&vec![Token::Star, Token::Var(Var::from("Y"))])
         );
 
         let (tail, (lhs, rhs)) = separated_pair(var, tag(Token::Star), var)
@@ -199,8 +207,8 @@ mod tests {
         dbg!(lhs.clone(), rhs.clone());
 
         assert!(tail.is_empty());
-        assert_eq!(lhs, Aexp::Var(Var::from("X")));
-        assert_eq!(rhs, Aexp::Var(Var::from("Y")));
+        assert_eq!(lhs, Aexp::var_from("X"));
+        assert_eq!(rhs, Aexp::var_from("Y"));
     }
 
     #[test]
@@ -215,7 +223,7 @@ mod tests {
             expr,
             Aexp::Mul(
                 Box::new(Aexp::Add(
-                    Box::new(Aexp::Var("X".into())),
+                    Box::new(Aexp::var_from("X")),
                     Box::new(Aexp::Int(13))
                 )),
                 Box::new(Aexp::Int(6))
@@ -231,7 +239,7 @@ mod tests {
         assert_eq!(
             expr,
             Aexp::Add(
-                Box::new(Aexp::Var("X".into())),
+                Box::new(Aexp::var_from("X")),
                 Box::new(Aexp::Mul(Box::new(Aexp::Int(13)), Box::new(Aexp::Int(6)))),
             )
         );
@@ -245,7 +253,7 @@ mod tests {
         assert_eq!(
             expr,
             Aexp::Add(
-                Box::new(Aexp::Var("X".into())),
+                Box::new(Aexp::var_from("X")),
                 Box::new(Aexp::Mul(Box::new(Aexp::Int(13)), Box::new(Aexp::Int(6)))),
             )
         );
