@@ -50,15 +50,17 @@ use nom::{
     IResult, Parser,
 };
 
-use crate::lexer::{
-    token::{Token, TokensRef},
-    var::Var,
+use crate::{
+    ast::tree::Tree,
+    lexer::{
+        token::{Token, TokensRef},
+        var::Var,
+    },
 };
 
 use super::{
     aexp::{aexp, Aexp},
     bexp::{bexp, Bexp},
-    tree::Tree,
     util::{binary_expr, unbox2},
 };
 

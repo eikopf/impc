@@ -42,15 +42,15 @@ use nom::{
     Parser,
 };
 
-use crate::lexer::{
-    token::{Token, TokensRef},
-    var::Var,
+use crate::{
+    ast::tree::Tree,
+    lexer::{
+        token::{Token, TokensRef},
+        var::Var,
+    },
 };
 
-use super::{
-    tree::Tree,
-    util::{binary_expr, unbox2},
-};
+use super::util::{binary_expr, unbox2};
 
 /// An arithmetic expression, consisting of
 /// - variables ([`Var`]s);
