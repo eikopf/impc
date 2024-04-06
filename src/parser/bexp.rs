@@ -38,6 +38,7 @@ use crate::lexer::{
 
 use super::{
     aexp::{aexp, Aexp},
+    tree::Tree,
     util::{binary_expr, unbox2},
 };
 
@@ -83,6 +84,23 @@ where
                 Self::Or(lhs, rhs) => format!("(or {lhs} {rhs})"),
             }
         )
+    }
+}
+
+impl<V, T> Tree for Bexp<V, T> {
+    type Node = Self;
+
+    #[inline(always)]
+    fn root(self) -> Self::Node {
+        self
+    }
+
+    #[inline(always)]
+    fn map<U, F>(self, op: F) -> U
+    where
+        F: FnOnce(Self::Node) -> U,
+    {
+        op(self)
     }
 }
 

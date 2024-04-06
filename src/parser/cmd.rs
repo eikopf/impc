@@ -58,6 +58,7 @@ use crate::lexer::{
 use super::{
     aexp::{aexp, Aexp},
     bexp::{bexp, Bexp},
+    tree::Tree,
     util::{binary_expr, unbox2},
 };
 
@@ -113,6 +114,23 @@ where
                 ),
             }
         )
+    }
+}
+
+impl<V, T> Tree for Cmd<V, T> {
+    type Node = Self;
+
+    #[inline(always)]
+    fn root(self) -> Self::Node {
+        self
+    }
+
+    #[inline(always)]
+    fn map<U, F>(self, op: F) -> U
+    where
+        F: FnOnce(Self::Node) -> U,
+    {
+        op(self)
     }
 }
 

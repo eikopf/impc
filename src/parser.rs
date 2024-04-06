@@ -15,7 +15,10 @@ use thiserror::Error;
 
 use crate::lexer::{token::TokensRef, var::Var};
 
-use self::cmd::{cmd, Cmd};
+use self::{
+    cmd::{cmd, Cmd},
+    tree::Tree,
+};
 
 pub mod aexp;
 pub mod bexp;
@@ -46,6 +49,23 @@ impl<'buf, 'src, T: Clone + Eq> TryFrom<TokensRef<'buf, 'src, T>> for Ast<Var<'s
         })?;
         debug_assert!(tail.is_empty());
         Ok(Self { root })
+    }
+}
+
+impl<V, T> Tree for Ast<V, T> {
+    type Node = Cmd<V, T>;
+
+    #[inline(always)]
+    fn root(self) -> Self::Node {
+        self.root
+    }
+
+    #[inline(always)]
+    fn map<U, F>(self, op: F) -> U
+    where
+        F: FnOnce(Self::Node) -> U,
+    {
+        op(self.root)
     }
 }
 

@@ -47,7 +47,10 @@ use crate::lexer::{
     var::Var,
 };
 
-use super::util::{binary_expr, unbox2};
+use super::{
+    tree::Tree,
+    util::{binary_expr, unbox2},
+};
 
 /// An arithmetic expression, consisting of
 /// - variables ([`Var`]s);
@@ -86,6 +89,23 @@ impl<V: std::fmt::Display, T: std::fmt::Display> std::fmt::Display for Aexp<V, T
                 Aexp::Sub(lhs, rhs) => format!("(- {lhs} {rhs})"),
             }
         )
+    }
+}
+
+impl<V, T> Tree for Aexp<V, T> {
+    type Node = Self;
+
+    #[inline(always)]
+    fn root(self) -> Self::Node {
+        self
+    }
+
+    #[inline(always)]
+    fn map<U, F>(self, op: F) -> U
+    where
+        F: FnOnce(Self::Node) -> U,
+    {
+        op(self)
     }
 }
 
