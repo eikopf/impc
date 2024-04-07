@@ -50,7 +50,7 @@ where
     T: Tree,
 {
     /// The return type of [`Rewriter::rewrite`].
-    type Output: Tree;
+    type Output;
 
     /// Rewrites the given `tree` into a new tree.
     fn rewrite(tree: T) -> Self::Output;
@@ -113,14 +113,14 @@ where
             Aexp::Sub(lhs, rhs) => match (*lhs, *rhs) {
                 // both args are integers
                 (Aexp::Int(a), Aexp::Int(b)) => Aexp::Int(relu(&a, &b)),
-                // identical variable args
-                (Aexp::Var(a), Aexp::Var(b)) if a == b => Aexp::Int(T::zero()),
+                // identical arguments
+                (a, b) if a == b => Aexp::Int(T::zero()),
                 // first argument is zero
                 (Aexp::Int(x), _) if x.is_zero() => Aexp::Int(T::zero()),
                 // second argument is zero
                 (arg, Aexp::Int(x)) if x.is_zero() => arg,
                 // otherwise just recurse
-                other @ _ => Aexp::Sub(
+                other => Aexp::Sub(
                     Box::new(Self::rewrite(other.0)),
                     Box::new(Self::rewrite(other.1)),
                 ),
@@ -146,7 +146,7 @@ where
                     )),
                 )),
                 // default case
-                other @ _ => match other {
+                other => match other {
                     // if the int is on the left, swap their ordering
                     (int @ Aexp::Int(_), var @ Aexp::Var(_)) => {
                         Aexp::Mul(Box::new(var), Box::new(int))
@@ -172,22 +172,13 @@ where
                 }
                 // at least one argument is 0
                 (Aexp::Int(x), arg) | (arg, Aexp::Int(x)) if x.is_zero() => arg,
-                // addition of addition (i.e. quaternary addition)
-                (Aexp::Add(a, b), Aexp::Add(c, d)) => {
-                    // assuming maximal simplification, we must have matched an expression of
-                    // 1. (VAR + VAR) + (VAR + VAR) or;
-                    // 2. (VAR + VAR) + (VAR + INT) or;
-                    // 3. (VAR + INT) + (VAR + VAR) or;
-                    // 4. (VAR + INT) + (VAR + INT).
-                    // this gives that rewriting (a + b) + (c + d) as (a + c) + (d + b) will:
-                    // - not change the form of (1), and;
-                    // - will interchange (2) and (3), and;
-                    // - will map (4) to (VAR + VAR) + (INT + INT).
-                    Aexp::Add(
-                        Box::new(Self::rewrite(Aexp::Add(a, c))),
-                        Box::new(Self::rewrite(Aexp::Add(d, b))),
-                    )
-                }
+                // addition of addition (i.e. quaternary addition), where
+                // by construction the permutation (1342) can simplify the
+                // expression without breaking the left-VAR property
+                (Aexp::Add(a, b), Aexp::Add(c, d)) => Aexp::Add(
+                    Box::new(Self::rewrite(Aexp::Add(a, c))),
+                    Box::new(Self::rewrite(Aexp::Add(d, b))),
+                ),
                 // left (reverse) distributive property
                 (Aexp::Mul(a, b), Aexp::Mul(c, d)) if a == c => {
                     Aexp::Mul(a, Box::new(Aexp::Add(b, d)))
@@ -197,29 +188,25 @@ where
                     Aexp::Mul(Box::new(Aexp::Add(a, c)), b)
                 }
                 // default case
-                other @ _ => match (Self::rewrite(other.0), Self::rewrite(other.1)) {
+                other => match other {
                     (int @ Aexp::Int(_), var @ Aexp::Var(_)) => {
                         Aexp::Add(Box::new(var), Box::new(int))
                     }
-                    other @ _ => Aexp::Add(Box::new(other.0), Box::new(other.1)),
+                    _ => Aexp::Add(Box::new(other.0), Box::new(other.1)),
                 },
             },
         }
     }
 }
 
+/// Returns `true` iff `expr` is an [`Aexp::Var`].
 const fn is_var<V, T>(expr: &Aexp<V, T>) -> bool {
-    match expr {
-        Aexp::Var(_) => true,
-        _ => false,
-    }
+    matches!(expr, Aexp::Var(_))
 }
 
+/// Returns `true` iff `expr` is an [`Aexp::Int`].
 const fn is_int<V, T>(expr: &Aexp<V, T>) -> bool {
-    match expr {
-        Aexp::Int(_) => true,
-        _ => false,
-    }
+    matches!(expr, Aexp::Int(_))
 }
 
 #[cfg(test)]
@@ -265,6 +252,22 @@ mod tests {
                     Box::new(Aexp::var_from("X"))
                 )),
                 Box::new(Aexp::Int(7))
+            )
+        );
+
+        let tokens: Tokens = "((1 * X) + 3) * 4".try_into().unwrap();
+        let (_, expr): (_, Aexp<_>) = aexp(tokens.as_ref()).unwrap();
+        eprintln!("raw aexp: {expr}");
+        let expr = AstRewriter::rewrite(expr);
+        eprintln!("rewritten aexp: {expr}");
+        assert_eq!(
+            expr,
+            Aexp::Mul(
+                Box::new(Aexp::Add(
+                    Box::new(Aexp::var_from("X")),
+                    Box::new(Aexp::Int(3))
+                )),
+                Box::new(Aexp::Int(4)),
             )
         );
     }
