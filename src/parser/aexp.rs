@@ -23,8 +23,8 @@
 //!
 //! ```raw
 //! aexp ::=
-//!       factor '-' factor
-//!     | factor '+' factor
+//!       factor '-' aexp
+//!     | factor '+' aexp
 //!     | factor
 //!
 //! factor ::=
@@ -41,9 +41,10 @@ use nom::{
     branch::alt, bytes::complete::tag, combinator::fail, sequence::delimited, IResult, InputTake,
     Parser,
 };
+use num_traits::Unsigned;
 
 use crate::{
-    ast::tree::Tree,
+    ast::tree::{NodeCount, Tree},
     lexer::{
         token::{Token, TokensRef},
         var::Var,
@@ -109,6 +110,24 @@ impl<V, T> Tree for Aexp<V, T> {
     }
 }
 
+impl<V, T, U> NodeCount<U> for Aexp<V, T>
+where
+    U: Unsigned,
+{
+    fn count_nodes(&self) -> U {
+        // recursive definition: the number of nodes in a tree is 1 + the number of nodes in its
+        // subtrees
+        U::one()
+            + match self {
+                Self::Add(lhs, rhs) | Self::Mul(lhs, rhs) | Self::Sub(lhs, rhs) => {
+                    // explicit call required to help type inference at deref coercion boundary
+                    <Aexp<V, T> as NodeCount<U>>::count_nodes(lhs) + rhs.count_nodes()
+                }
+                Self::Int(_) | Self::Var(_) => U::zero(),
+            }
+    }
+}
+
 impl<V, T> Aexp<V, T> {
     /// Constructs an [`Aexp::Var`] by cloning `var`.
     pub fn var_from<'src>(var: &'src str) -> Self
@@ -127,8 +146,8 @@ pub fn aexp<'buf, 'src, T: 'buf + Clone + Eq>(
     input: TokensRef<'buf, 'src, T>,
 ) -> AexpResult<'buf, 'src, T> {
     alt((
-        binary_expr(factor, Token::Minus, factor, unbox2(Aexp::Sub)),
-        binary_expr(factor, Token::Plus, factor, unbox2(Aexp::Add)),
+        binary_expr(factor, Token::Minus, aexp, unbox2(Aexp::Sub)),
+        binary_expr(factor, Token::Plus, aexp, unbox2(Aexp::Add)),
         factor,
     ))
     .parse(input)

@@ -10,6 +10,7 @@ use crate::{
 
 use self::tree::Tree;
 
+pub mod rewriter;
 pub mod tree;
 
 /// The error type thrown when trying to parse an [`Ast`] from [`Tokens`](crate::lexer::token::Tokens).

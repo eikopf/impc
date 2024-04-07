@@ -14,6 +14,12 @@ pub trait Tree {
         F: FnOnce(Self::Node) -> U;
 }
 
+/// A trait for trees with countable nodes.
+pub trait NodeCount<T> where Self: Tree {
+    /// Returns the number of nodes in `self`.
+    fn count_nodes(&self) -> T;
+}
+
 /// A trait for evaluating trees.
 ///
 /// # Auto-implementations
