@@ -22,6 +22,9 @@
 //! parentheses to be valid in a boolean expression only if they appear
 //! around `and` or `or`, and indeed mandates their usage with these
 //! logical connectives (presumably this is to avoid precendence ambiguity).
+//!
+//! # Desugaring
+//! To avoid code duplication, the inequality (`<>`) operator is desugared as `not <lhs> = <rhs>`.
 
 use nom::{
     branch::alt,
@@ -51,9 +54,6 @@ pub enum Bexp<V, T = usize> {
     Atom(bool),
     /// The equality comparison, corresponding to [`Token::Equals`].
     Eq(Aexp<V, T>, Aexp<V, T>),
-    /// The inequality comparison, corresponding to the token sequence of [`Token::LeftAngleBracket`]
-    /// followed by [`Token::RightAngleBracket`].
-    NotEq(Aexp<V, T>, Aexp<V, T>),
     /// The less-than comparison, corresponding to a single [`Token::LeftAngleBracket`].
     LessThan(Aexp<V, T>, Aexp<V, T>),
     /// The greater-than comparison, corresponding to a single [`Token::RightAngleBracket`].
@@ -78,7 +78,6 @@ where
             match self {
                 Self::Atom(atom) => format!("{atom}"),
                 Self::Eq(lhs, rhs) => format!("(= {lhs} {rhs})"),
-                Self::NotEq(lhs, rhs) => format!("(!= {lhs} {rhs})"),
                 Self::LessThan(lhs, rhs) => format!("(< {lhs} {rhs})"),
                 Self::GreaterThan(lhs, rhs) => format!("(> {lhs} {rhs})"),
                 Self::Not(inner) => format!("(not {inner})"),
@@ -154,7 +153,7 @@ fn proposition<'buf, 'src, T: Clone + Eq>(
     let not_eq_tokens = TokensRef::new(&[Token::LeftAngleBracket, Token::RightAngleBracket]);
 
     alt((
-        binary_expr(aexp, not_eq_tokens, aexp, Bexp::NotEq),
+        binary_expr(aexp, not_eq_tokens, aexp, |lhs, rhs| Bexp::Not(Box::new(Bexp::Eq(lhs, rhs)))),
         binary_expr(aexp, Token::RightAngleBracket, aexp, Bexp::GreaterThan),
         binary_expr(aexp, Token::LeftAngleBracket, aexp, Bexp::LessThan),
         binary_expr(aexp, Token::Equals, aexp, Bexp::Eq),
@@ -193,7 +192,7 @@ mod tests {
         dbg!(tail.clone(), prop.clone());
 
         assert!(tail.is_empty());
-        assert_eq!(prop, Bexp::NotEq(Aexp::Int(13), Aexp::Int(12)));
+        assert_eq!(prop, Bexp::Not(Box::new(Bexp::Eq(Aexp::Int(13),Aexp::Int(12)))));
 
         let tokens = Tokens::<'_, usize>::try_from("X = Y - 1").unwrap();
         let (tail, prop) = proposition(tokens.as_ref()).unwrap();

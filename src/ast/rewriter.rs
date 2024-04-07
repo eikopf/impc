@@ -30,7 +30,10 @@ use std::convert::Infallible;
 
 use num_traits::{SaturatingSub, Unsigned};
 
-use crate::{parser::aexp::Aexp, relu::relu};
+use crate::{
+    parser::{aexp::Aexp, bexp::Bexp},
+    relu::relu,
+};
 
 use super::tree::{Evaluator, Tree};
 
@@ -199,6 +202,68 @@ where
     }
 }
 
+impl<V, T> Rewriter<Bexp<V, T>> for AstRewriter
+where
+    T: Clone + Unsigned + SaturatingSub + PartialOrd,
+    V: Clone + PartialEq,
+{
+    type Output = Bexp<V, T>;
+
+    fn rewrite(tree: Bexp<V, T>) -> Self::Output {
+        match tree {
+            atom @ Bexp::Atom(_) => atom,
+            Bexp::Not(expr) => match Self::rewrite(*expr) {
+                // atoms are just negated
+                Bexp::Atom(atom) => Bexp::Atom(!atom),
+                // in the default case, we just return
+                expr => Bexp::Not(Box::new(expr)),
+            },
+            Bexp::Eq(lhs, rhs) => match (Self::rewrite(lhs), Self::rewrite(rhs)) {
+                // the simplest kind of tautology is strict equality
+                (lhs, rhs) if lhs == rhs => Bexp::Atom(true),
+                // default case
+                (lhs, rhs) => Bexp::Eq(lhs, rhs),
+            },
+            Bexp::And(lhs, rhs) => match (Self::rewrite(*lhs), Self::rewrite(*rhs)) {
+                // constant folding
+                (Bexp::Atom(lhs), Bexp::Atom(rhs)) => Bexp::Atom(lhs && rhs),
+                // constant propagation
+                (Bexp::Atom(false), _) | (_, Bexp::Atom(false)) => Bexp::Atom(false),
+                // contradiction reduction
+                (x, Bexp::Not(y)) | (Bexp::Not(y), x) if x == *y => Bexp::Atom(false),
+                // construction via De Morgan's law
+                (Bexp::Not(lhs), Bexp::Not(rhs)) => {
+                    Self::rewrite(Bexp::Not(Box::new(Bexp::Or(lhs, rhs))))
+                }
+                // conjunction elimination
+                (lhs, rhs) if lhs == rhs => lhs,
+                // default case
+                (lhs, rhs) => Bexp::And(Box::new(lhs), Box::new(rhs)),
+            },
+            Bexp::Or(lhs, rhs) => Self::rewrite(Bexp::Not(Box::new(Self::rewrite(Bexp::And(
+                Box::new(Bexp::Not(lhs)),
+                Box::new(Bexp::Not(rhs)),
+            ))))),
+            Bexp::LessThan(lhs, rhs) => match (Self::rewrite(lhs), Self::rewrite(rhs)) {
+                // evaluate constant operands
+                (Aexp::Int(lhs), Aexp::Int(rhs)) => Bexp::Atom(lhs < rhs),
+                // catch trivial equality contradiction
+                (lhs, rhs) if lhs == rhs => Bexp::Atom(false),
+                // default case
+                (lhs, rhs) => Bexp::LessThan(lhs, rhs),
+            },
+            Bexp::GreaterThan(lhs, rhs) => match (Self::rewrite(lhs), Self::rewrite(rhs)) {
+                // evaluate constant operands
+                (Aexp::Int(lhs), Aexp::Int(rhs)) => Bexp::Atom(lhs > rhs),
+                // catch trivial equality contradiction
+                (lhs, rhs) if lhs == rhs => Bexp::Atom(false),
+                // default case
+                (lhs, rhs) => Bexp::GreaterThan(lhs, rhs),
+            }
+        }
+    }
+}
+
 /// Returns `true` iff `expr` is an [`Aexp::Var`].
 const fn is_var<V, T>(expr: &Aexp<V, T>) -> bool {
     matches!(expr, Aexp::Var(_))
@@ -211,7 +276,7 @@ const fn is_int<V, T>(expr: &Aexp<V, T>) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use crate::{lexer::token::Tokens, parser::aexp::aexp};
+    use crate::{lexer::token::Tokens, parser::{aexp::aexp, bexp::bexp}};
 
     use super::*;
 
@@ -270,5 +335,24 @@ mod tests {
                 Box::new(Aexp::Int(4)),
             )
         );
+    }
+
+    #[test]
+    fn check_bexp_rewriter_impl() {
+        // expr is (not (= X X)), equivalent to false
+        let tokens: Tokens = "X <> X".try_into().unwrap();
+        let (_, expr): (_, Bexp<_>) = bexp(tokens.as_ref()).unwrap();
+        eprintln!("parsed expr: {expr}");
+        let expr = AstRewriter::simplify(expr);
+        eprintln!("simple expr: {expr}");
+        assert_eq!(expr, Bexp::Atom(false));
+
+        // expr is (= 1 (+ (* 1 0) 1)), equivalent to true
+        let tokens: Tokens = "1 = (1 * 0) + 1".try_into().unwrap();
+        let (_, expr): (_, Bexp<_>) = bexp(tokens.as_ref()).unwrap();
+        eprintln!("parsed expr: {expr}");
+        let expr = AstRewriter::simplify(expr);
+        eprintln!("simple expr: {expr}");
+        assert_eq!(expr, Bexp::Atom(true));
     }
 }

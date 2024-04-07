@@ -257,7 +257,7 @@ mod tests {
                 Box::new(Cmd::Assign("Y".into(), Aexp::Int(3))),
                 Box::new(Cmd::Seq(
                     Box::new(Cmd::While(
-                        Bexp::NotEq(Aexp::var_from("X"), Aexp::var_from("Y")),
+                        Bexp::Not(Box::new(Bexp::Eq(Aexp::var_from("X"), Aexp::var_from("Y")))),
                         Box::new(Cmd::Seq(
                             Box::new(Cmd::Assign("X".into(), Aexp::var_from("Y"))),
                             Box::new(Cmd::Seq(
