@@ -26,6 +26,8 @@
 //! # Desugaring
 //! To avoid code duplication, the inequality (`<>`) operator is desugared as `not <lhs> = <rhs>`.
 
+use std::ops::{BitAnd, BitOr, Not};
+
 use nom::{
     branch::alt,
     bytes::complete::tag,
@@ -44,7 +46,7 @@ use crate::{
 
 use super::{
     aexp::{aexp, Aexp},
-    util::{binary_expr, unbox2},
+    util::binary_expr,
 };
 
 /// A boolean expression.
@@ -64,6 +66,30 @@ pub enum Bexp<V, T = usize> {
     And(Box<Self>, Box<Self>),
     /// The binary logical OR operator, corresponding to [`Token::Or`].
     Or(Box<Self>, Box<Self>),
+}
+
+impl<V, T> Not for Bexp<V, T> {
+    type Output = Self;
+
+    fn not(self) -> Self::Output {
+        Bexp::Not(Box::new(self))
+    }
+}
+
+impl<V, T> BitAnd for Bexp<V, T> {
+    type Output = Self;
+
+    fn bitand(self, rhs: Self) -> Self::Output {
+        Bexp::And(Box::new(self), Box::new(rhs))
+    }
+}
+
+impl<V, T> BitOr for Bexp<V, T> {
+    type Output = Self;
+
+    fn bitor(self, rhs: Self) -> Self::Output {
+        Bexp::Or(Box::new(self), Box::new(rhs))
+    }
 }
 
 impl<V, T> std::fmt::Display for Bexp<V, T>
@@ -105,6 +131,29 @@ impl<V, T> Tree for Bexp<V, T> {
     }
 }
 
+impl<V, T> Bexp<V, T> {
+    /// The `true` atom.
+    pub const TRUE: Self = Bexp::Atom(true);
+
+    /// The `false` atom.
+    pub const FALSE: Self = Bexp::Atom(false);
+
+    /// Constructs a [`Bexp`] corresponding to `lhs = rhs`.
+    pub fn eq(lhs: Aexp<V, T>, rhs: Aexp<V, T>) -> Self {
+        Bexp::Eq(lhs, rhs)
+    }
+
+    /// Constructs a [`Bexp`] corresponding to `lhs < rhs`.
+    pub fn lt(lhs: Aexp<V, T>, rhs: Aexp<V, T>) -> Self {
+        Bexp::LessThan(lhs, rhs)
+    }
+
+    /// Constructs a [`Bexp`] corresponding to `lhs > rhs`.
+    pub fn gt(lhs: Aexp<V, T>, rhs: Aexp<V, T>) -> Self {
+        Bexp::GreaterThan(lhs, rhs)
+    }
+}
+
 /// The return type of parsers in the [`crate::parser::bexp`] module.
 pub type BexpResult<'buf, 'src, T = usize> = IResult<TokensRef<'buf, 'src, T>, Bexp<Var<'src>, T>>;
 
@@ -131,8 +180,8 @@ fn connective<'buf, 'src, T: Clone + Eq>(
     delimited(
         tag(Token::LeftParen),
         alt((
-            binary_expr(bexp, Token::Or, bexp, unbox2(Bexp::Or)),
-            binary_expr(bexp, Token::And, bexp, unbox2(Bexp::And)),
+            binary_expr(bexp, Token::Or, bexp, Bexp::bitor),
+            binary_expr(bexp, Token::And, bexp, Bexp::bitand),
         )),
         tag(Token::RightParen),
     )
@@ -143,7 +192,7 @@ fn connective<'buf, 'src, T: Clone + Eq>(
 fn not<'buf, 'src, T: Clone + Eq>(input: TokensRef<'buf, 'src, T>) -> BexpResult<'buf, 'src, T> {
     preceded(tag(Token::Not), bexp)
         .parse(input)
-        .map(|(tail, expr)| (tail, Bexp::Not(Box::new(expr))))
+        .map(|(tail, expr)| (tail, !expr))
 }
 
 /// Parses a proposition (i.e. nonrecursive variant of [`Bexp`]) from `input`.
@@ -153,10 +202,10 @@ fn proposition<'buf, 'src, T: Clone + Eq>(
     let not_eq_tokens = TokensRef::new(&[Token::LeftAngleBracket, Token::RightAngleBracket]);
 
     alt((
-        binary_expr(aexp, not_eq_tokens, aexp, |lhs, rhs| Bexp::Not(Box::new(Bexp::Eq(lhs, rhs)))),
-        binary_expr(aexp, Token::RightAngleBracket, aexp, Bexp::GreaterThan),
-        binary_expr(aexp, Token::LeftAngleBracket, aexp, Bexp::LessThan),
-        binary_expr(aexp, Token::Equals, aexp, Bexp::Eq),
+        binary_expr(aexp, not_eq_tokens, aexp, |lhs, rhs| !Bexp::eq(lhs, rhs)),
+        binary_expr(aexp, Token::RightAngleBracket, aexp, Bexp::gt),
+        binary_expr(aexp, Token::LeftAngleBracket, aexp, Bexp::lt),
+        binary_expr(aexp, Token::Equals, aexp, Bexp::eq),
         atom,
     ))
     .parse(input)
@@ -192,7 +241,7 @@ mod tests {
         dbg!(tail.clone(), prop.clone());
 
         assert!(tail.is_empty());
-        assert_eq!(prop, Bexp::Not(Box::new(Bexp::Eq(Aexp::Int(13),Aexp::Int(12)))));
+        assert_eq!(prop, !Bexp::Eq(Aexp::Int(13), Aexp::Int(12)));
 
         let tokens = Tokens::<'_, usize>::try_from("X = Y - 1").unwrap();
         let (tail, prop) = proposition(tokens.as_ref()).unwrap();
@@ -201,10 +250,7 @@ mod tests {
         assert!(tail.is_empty());
         assert_eq!(
             prop,
-            Bexp::Eq(
-                Aexp::var_from("X"),
-                Aexp::Sub(Box::new(Aexp::var_from("Y")), Box::new(Aexp::Int(1)))
-            )
+            Bexp::eq(Aexp::var_from("X"), Aexp::var_from("Y") - Aexp::Int(1))
         );
     }
 
@@ -220,10 +266,8 @@ mod tests {
         // the expression should be (not (or (= X 1) (> Y Z)))
         assert_eq!(
             expr,
-            Bexp::Not(Box::new(Bexp::Or(
-                Box::new(Bexp::Eq(Aexp::var_from("X"), Aexp::Int(1))),
-                Box::new(Bexp::GreaterThan(Aexp::var_from("Y"), Aexp::var_from("Z")))
-            )))
+            !(Bexp::eq(Aexp::var_from("X"), Aexp::Int(1))
+                | Bexp::gt(Aexp::var_from("Y"), Aexp::var_from("Z")))
         );
     }
 }
