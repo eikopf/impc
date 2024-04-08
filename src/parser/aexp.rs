@@ -37,9 +37,10 @@
 //!     | '(' aexp ')'
 //! ```
 
+use std::ops::{Add, Mul, Sub};
+
 use nom::{
-    branch::alt, bytes::complete::tag, combinator::fail, sequence::delimited, IResult, InputTake,
-    Parser,
+    branch::alt, bytes::complete::tag, combinator::fail, sequence::delimited, IResult, Parser,
 };
 use num_traits::Unsigned;
 
@@ -51,10 +52,12 @@ use crate::{
     },
 };
 
-use super::util::{binary_expr, unbox2};
+use super::util::binary_expr;
 
-/// An arithmetic expression, consisting of
-/// - variables ([`Var`]s);
+/// An arithmetic expression.
+///
+/// Arithmetic expressions consist of
+/// - variables (`V`s);
 /// - integers (`T`s);
 /// - multiplication expressions;
 /// - addition expressions;
@@ -77,6 +80,30 @@ pub enum Aexp<V, T = usize> {
     Sub(Box<Self>, Box<Self>),
 }
 
+impl<V, T> Add for Aexp<V, T> {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        Aexp::Add(Box::new(self), Box::new(rhs))
+    }
+}
+
+impl<V, T> Mul for Aexp<V, T> {
+    type Output = Self;
+
+    fn mul(self, rhs: Self) -> Self::Output {
+        Aexp::Mul(Box::new(self), Box::new(rhs))
+    }
+}
+
+impl<V, T> Sub for Aexp<V, T> {
+    type Output = Self;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        Aexp::Sub(Box::new(self), Box::new(rhs))
+    }
+}
+
 impl<V: std::fmt::Display, T: std::fmt::Display> std::fmt::Display for Aexp<V, T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
@@ -90,6 +117,31 @@ impl<V: std::fmt::Display, T: std::fmt::Display> std::fmt::Display for Aexp<V, T
                 Aexp::Sub(lhs, rhs) => format!("(- {lhs} {rhs})"),
             }
         )
+    }
+}
+
+impl<V, T: num_traits::ConstZero> num_traits::ConstZero for Aexp<V, T> {
+    const ZERO: Self = Aexp::Int(T::ZERO);
+}
+
+impl<V, T: num_traits::ConstOne> num_traits::ConstOne for Aexp<V, T> {
+    const ONE: Self = Aexp::Int(T::ONE);
+}
+
+impl<V, T: num_traits::Zero> num_traits::Zero for Aexp<V, T> {
+    #[inline(always)]
+    fn zero() -> Self {
+        Aexp::Int(T::zero())
+    }
+
+    fn is_zero(&self) -> bool {
+        matches!(self, Aexp::Int(int) if int.is_zero())
+    }
+}
+
+impl<V, T: num_traits::One> num_traits::One for Aexp<V, T> {
+    fn one() -> Self {
+        Aexp::Int(T::one())
     }
 }
 
@@ -146,8 +198,8 @@ pub fn aexp<'buf, 'src, T: 'buf + Clone + Eq>(
     input: TokensRef<'buf, 'src, T>,
 ) -> AexpResult<'buf, 'src, T> {
     alt((
-        binary_expr(factor, Token::Minus, aexp, unbox2(Aexp::Sub)),
-        binary_expr(factor, Token::Plus, aexp, unbox2(Aexp::Add)),
+        binary_expr(factor, Token::Minus, aexp, Aexp::sub),
+        binary_expr(factor, Token::Plus, aexp, Aexp::add),
         factor,
     ))
     .parse(input)
@@ -157,11 +209,7 @@ pub fn aexp<'buf, 'src, T: 'buf + Clone + Eq>(
 fn factor<'buf, 'src, T: 'buf + Clone + Eq>(
     input: TokensRef<'buf, 'src, T>,
 ) -> AexpResult<'buf, 'src, T> {
-    alt((
-        binary_expr(term, Token::Star, term, unbox2(Aexp::Mul)),
-        term,
-    ))
-    .parse(input)
+    alt((binary_expr(term, Token::Star, term, Aexp::mul), term)).parse(input)
 }
 
 /// Parses a term from `input`, where a term is considered to be one of
@@ -176,22 +224,16 @@ fn term<'buf, 'src, T: 'buf + Clone + Eq>(
 
 /// Parses an [`Aexp::Int`] from `input`.
 fn int<'buf, 'src, T: Clone>(input: TokensRef<'buf, 'src, T>) -> AexpResult<'buf, 'src, T> {
-    let (tail, head) = input.take_split(1);
-    debug_assert!(head.len() == 1);
-
-    match head.first() {
-        Some(Token::Int(int)) => Ok((tail, Aexp::Int(int.clone()))),
+    match input.split_first() {
+        Some((Token::Int(int), tail)) => Ok((tail.into(), Aexp::Int(int.clone()))),
         _ => fail(input),
     }
 }
 
 /// Parses an [`Aexp::Var`] from `input`.
 fn var<'buf, 'src, T: Clone>(input: TokensRef<'buf, 'src, T>) -> AexpResult<'buf, 'src, T> {
-    let (tail, head) = input.take_split(1);
-    debug_assert!(head.len() == 1);
-
-    match head.first() {
-        Some(Token::Var(var)) => Ok((tail, Aexp::Var(var.clone()))),
+    match input.split_first() {
+        Some((Token::Var(var), tail)) => Ok((tail.into(), Aexp::Var(var.clone()))),
         _ => fail(input),
     }
 }
@@ -258,16 +300,7 @@ mod tests {
         dbg!(tail.clone(), expr.clone());
 
         assert!(tail.is_empty());
-        assert_eq!(
-            expr,
-            Aexp::Mul(
-                Box::new(Aexp::Add(
-                    Box::new(Aexp::var_from("X")),
-                    Box::new(Aexp::Int(13))
-                )),
-                Box::new(Aexp::Int(6))
-            )
-        );
+        assert_eq!(expr, (Aexp::var_from("X") + Aexp::Int(13)) * Aexp::Int(6));
 
         // in this second case with parentheses omitted, we expect to get (+ X (* 13 6))
         let tokens = Tokens::<'_, usize>::try_from("X+13*6").unwrap();
@@ -275,13 +308,7 @@ mod tests {
         dbg!(tail.clone(), expr.clone());
 
         assert!(tail.is_empty());
-        assert_eq!(
-            expr,
-            Aexp::Add(
-                Box::new(Aexp::var_from("X")),
-                Box::new(Aexp::Mul(Box::new(Aexp::Int(13)), Box::new(Aexp::Int(6)))),
-            )
-        );
+        assert_eq!(expr, Aexp::var_from("X") + (Aexp::Int(13) * Aexp::Int(6)));
 
         // in this third case, we expect to get exactly the same result as in the second case
         let tokens = Tokens::<'_, usize>::try_from("X+(13*6)").unwrap();
@@ -289,12 +316,6 @@ mod tests {
         dbg!(tail.clone(), expr.clone());
 
         assert!(tail.is_empty());
-        assert_eq!(
-            expr,
-            Aexp::Add(
-                Box::new(Aexp::var_from("X")),
-                Box::new(Aexp::Mul(Box::new(Aexp::Int(13)), Box::new(Aexp::Int(6)))),
-            )
-        );
+        assert_eq!(expr, Aexp::var_from("X") + (Aexp::Int(13) * Aexp::Int(6)));
     }
 }
