@@ -1,6 +1,9 @@
 //! Well-formed IMP integer semantics.
 
-use std::{fmt::{Binary, Display, LowerExp, LowerHex, Octal, UpperExp, UpperHex}, ops::{Add, Deref, Div, Mul, Rem, Sub}};
+use std::{
+    fmt::{Binary, Display, LowerExp, LowerHex, Octal, UpperExp, UpperHex},
+    ops::{Add, Deref, Div, Mul, Rem, Sub},
+};
 
 use num_traits::{Bounded, ConstOne, ConstZero, Num, One, SaturatingSub, Unsigned, Zero};
 
@@ -34,7 +37,7 @@ pub type Imp128 = ImpInt<u128>;
 #[repr(transparent)]
 pub struct ImpInt<T>(T);
 
-impl<T> From<T> for ImpInt<T>  {
+impl<T> From<T> for ImpInt<T> {
     #[inline(always)]
     fn from(value: T) -> Self {
         Self(value)
