@@ -1,6 +1,6 @@
 //! Well-formed IMP integer semantics.
 
-use std::{fmt::{Display, LowerHex, UpperHex}, ops::{Add, Deref, Div, Mul, Rem, Sub}};
+use std::{fmt::{Binary, Display, LowerExp, LowerHex, Octal, UpperExp, UpperHex}, ops::{Add, Deref, Div, Mul, Rem, Sub}};
 
 use num_traits::{Bounded, ConstOne, ConstZero, Num, One, SaturatingSub, Unsigned, Zero};
 
@@ -56,6 +56,18 @@ impl<T: Display> Display for ImpInt<T> {
     }
 }
 
+impl<T: Binary> Binary for ImpInt<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        <T as Binary>::fmt(&self.0, f)
+    }
+}
+
+impl<T: Octal> Octal for ImpInt<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        <T as Octal>::fmt(&self.0, f)
+    }
+}
+
 impl<T: LowerHex> LowerHex for ImpInt<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         <T as LowerHex>::fmt(&self.0, f)
@@ -65,6 +77,18 @@ impl<T: LowerHex> LowerHex for ImpInt<T> {
 impl<T: UpperHex> UpperHex for ImpInt<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         <T as UpperHex>::fmt(&self.0, f)
+    }
+}
+
+impl<T: LowerExp> LowerExp for ImpInt<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        <T as LowerExp>::fmt(&self.0, f)
+    }
+}
+
+impl<T: UpperExp> UpperExp for ImpInt<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        <T as UpperExp>::fmt(&self.0, f)
     }
 }
 
