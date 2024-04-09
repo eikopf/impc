@@ -9,7 +9,7 @@ use super::{LexResult, token::Token};
 /// with a latin character and to have a body
 /// composed of latin characters, arabic numerals,
 /// and underscores.
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct Var<'src>(YarnBox<'src, str>);
 
 impl<'src> std::fmt::Display for Var<'src> {

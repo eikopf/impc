@@ -5,6 +5,7 @@
 
 pub mod ast;
 pub mod int;
+pub mod backend;
 pub mod lexer;
 pub mod parser;
 pub mod relu;
