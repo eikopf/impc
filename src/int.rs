@@ -20,6 +20,25 @@ pub type Imp64 = ImpInt<u64>;
 /// A `u128` conforming to IMP semantics.
 pub type Imp128 = ImpInt<u128>;
 
+/// Creates `impl` blocks with associated constants for the given `ImpInt<$int>` types.
+macro_rules! imp_int_impl {
+    ($int:ty) => {
+        impl ImpInt<$int> {
+            /// The minimum value representable by this type.
+            pub const MIN: Self = Self(<$int>::MIN);
+            /// The maximum value representable by this type.
+            pub const MAX: Self = Self(<$int>::MAX);
+        }
+    };
+
+    ($head:ty, $($tail:ty),+) => {
+        imp_int_impl!($head);
+        imp_int_impl!($($tail),+);
+    };
+}
+
+imp_int_impl!(u8, u16, u32, u64, u128, usize);
+
 /// A thin wrapper around an integer of type `T`, modifying
 /// its [`Sub`] implementation to conform to IMP's integer semantics.
 ///
