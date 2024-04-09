@@ -44,6 +44,7 @@ impl<T> From<T> for ImpInt<T>  {
 impl<T> Deref for ImpInt<T> {
     type Target = T;
 
+    #[inline(always)]
     fn deref(&self) -> &Self::Target {
         &self.0
     }
@@ -57,36 +58,42 @@ impl<T: Display> Display for ImpInt<T> {
 }
 
 impl<T: Binary> Binary for ImpInt<T> {
+    #[inline(always)]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         <T as Binary>::fmt(&self.0, f)
     }
 }
 
 impl<T: Octal> Octal for ImpInt<T> {
+    #[inline(always)]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         <T as Octal>::fmt(&self.0, f)
     }
 }
 
 impl<T: LowerHex> LowerHex for ImpInt<T> {
+    #[inline(always)]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         <T as LowerHex>::fmt(&self.0, f)
     }
 }
 
 impl<T: UpperHex> UpperHex for ImpInt<T> {
+    #[inline(always)]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         <T as UpperHex>::fmt(&self.0, f)
     }
 }
 
 impl<T: LowerExp> LowerExp for ImpInt<T> {
+    #[inline(always)]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         <T as LowerExp>::fmt(&self.0, f)
     }
 }
 
 impl<T: UpperExp> UpperExp for ImpInt<T> {
+    #[inline(always)]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         <T as UpperExp>::fmt(&self.0, f)
     }
@@ -181,6 +188,7 @@ impl<T: SaturatingSub<Output = T>> Sub for ImpInt<T> {
 impl<T: Num + SaturatingSub> Num for ImpInt<T> {
     type FromStrRadixErr = <T as Num>::FromStrRadixErr;
 
+    #[inline(always)]
     fn from_str_radix(str: &str, radix: u32) -> Result<Self, Self::FromStrRadixErr> {
         <T as Num>::from_str_radix(str, radix).map(ImpInt)
     }
