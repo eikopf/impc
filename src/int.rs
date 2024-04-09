@@ -1,23 +1,23 @@
 //! Well-formed IMP integer semantics.
 
-use std::{fmt::{Display, LowerHex, UpperHex}, ops::{Add, Deref, Mul, Sub}};
+use std::{fmt::{Display, LowerHex, UpperHex}, ops::{Add, Deref, Div, Mul, Rem, Sub}};
 
-use num_traits::{Bounded, ConstOne, ConstZero, One, SaturatingSub, Zero};
+use num_traits::{Bounded, ConstOne, ConstZero, Num, One, SaturatingSub, Unsigned, Zero};
 
 /// A `usize` conforming to IMP semantics.
-pub type ImpUsize = ImpInt<usize>;
+pub type ImpSize = ImpInt<usize>;
 /// A `u8` conforming to IMP semantics.
-pub type ImpU8 = ImpInt<u8>;
+pub type Imp8 = ImpInt<u8>;
 /// A `u16` conforming to IMP semantics.
-pub type ImpU16 = ImpInt<u16>;
+pub type Imp16 = ImpInt<u16>;
 /// A `u32` conforming to IMP semantics.
-pub type ImpU32 = ImpInt<u32>;
+pub type Imp32 = ImpInt<u32>;
 /// A `u64` conforming to IMP semantics.
-pub type ImpU64 = ImpInt<u64>;
+pub type Imp64 = ImpInt<u64>;
 /// A `u128` conforming to IMP semantics.
-pub type ImpU128 = ImpInt<u128>;
+pub type Imp128 = ImpInt<u128>;
 
-/// A thin wrapper around an unsigned integer of type `T`, modifying
+/// A thin wrapper around an integer of type `T`, modifying
 /// its [`Sub`] implementation to conform to IMP's integer semantics.
 ///
 /// # Guarantees
@@ -25,6 +25,11 @@ pub type ImpU128 = ImpInt<u128>;
 /// - `ImpInt<T>` implements [`Add`] and [`Mul`] by transparently deferring to the corresponding
 ///    implementations on `T`;
 /// - The [`Sub`] implementation on `ImpInt<T>` defers to a transparent invocation of [`SaturatingSub`].
+///
+/// # Invalid Operations
+/// To implement [`Num`] and [`Unsigned`], a type is required to implement [`Div`] and [`Rem`].
+/// These operations are however entirely undefined for IMP integers, and so the corresponding
+/// implementations on [`ImpInt`] immediately panic when invoked.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 #[repr(transparent)]
 pub struct ImpInt<T>(T);
@@ -102,6 +107,26 @@ impl<T: Bounded> Bounded for ImpInt<T> {
     }
 }
 
+impl<T> Div for ImpInt<T> {
+    type Output = Self;
+
+    /// Division is undefined for IMP integers, and this
+    /// operation will immediately panic when invoked.
+    fn div(self, _rhs: Self) -> Self::Output {
+        panic!("Division is an invalid operation for IMP integers.")
+    }
+}
+
+impl<T> Rem for ImpInt<T> {
+    type Output = Self;
+
+    /// Modularity is undefined for IMP integers, and this
+    /// operation will immediately panic when invoked.
+    fn rem(self, _rhs: Self) -> Self::Output {
+        panic!("The modulo operation is undefined for IMP integers")
+    }
+}
+
 impl<T: Add<Output = T>> Add for ImpInt<T> {
     type Output = Self;
 
@@ -129,6 +154,16 @@ impl<T: SaturatingSub<Output = T>> Sub for ImpInt<T> {
     }
 }
 
+impl<T: Num + SaturatingSub> Num for ImpInt<T> {
+    type FromStrRadixErr = <T as Num>::FromStrRadixErr;
+
+    fn from_str_radix(str: &str, radix: u32) -> Result<Self, Self::FromStrRadixErr> {
+        <T as Num>::from_str_radix(str, radix).map(ImpInt)
+    }
+}
+
+impl<T: Num + Unsigned + SaturatingSub> Unsigned for ImpInt<T> {}
+
 impl<T> ImpInt<T> {
     /// Consumes `self` and returns the underlying value.
     #[inline(always)]
@@ -145,6 +180,6 @@ mod tests {
     fn sub_impl_is_saturating() {
         let lhs = ImpInt::<usize>(10);
         let rhs = ImpInt::<usize>(12);
-        assert_eq!(ImpUsize::ZERO, lhs - rhs);
+        assert_eq!(ImpSize::ZERO, lhs - rhs);
     }
 }
