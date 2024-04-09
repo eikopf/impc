@@ -21,23 +21,26 @@ pub type Imp64 = ImpInt<u64>;
 pub type Imp128 = ImpInt<u128>;
 
 /// Creates `impl` blocks with associated constants for the given `ImpInt<$int>` types.
-macro_rules! imp_int_impl {
+macro_rules! imp_int_impls {
     ($int:ty) => {
         impl ImpInt<$int> {
-            /// The minimum value representable by this type.
+            /// The minimum value representable by this type, i.e. zero.
             pub const MIN: Self = Self(<$int>::MIN);
             /// The maximum value representable by this type.
             pub const MAX: Self = Self(<$int>::MAX);
         }
+
+        // static assertion to verify that minimum values are exactly zero.
+        crate::sa::const_assert_eq!(ImpInt::<$int>::MIN.0, <$int>::ZERO);
     };
 
     ($head:ty, $($tail:ty),+) => {
-        imp_int_impl!($head);
-        imp_int_impl!($($tail),+);
+        imp_int_impls!($head);
+        imp_int_impls!($($tail),+);
     };
 }
 
-imp_int_impl!(u8, u16, u32, u64, u128, usize);
+imp_int_impls!(usize, u8, u16, u32, u64, u128);
 
 /// A thin wrapper around an integer of type `T`, modifying
 /// its [`Sub`] implementation to conform to IMP's integer semantics.
