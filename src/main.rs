@@ -4,6 +4,7 @@
 #![warn(clippy::missing_docs_in_private_items)]
 
 pub mod ast;
+pub mod int;
 pub mod lexer;
 pub mod parser;
 pub mod relu;
