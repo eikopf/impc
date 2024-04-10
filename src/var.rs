@@ -1,10 +1,10 @@
-//! A compiler-frontend [`Var`] type providing borrowed, copy-on-write semantics.
+//! A compiler-frontend [`Var`] type providing borrowed copy-on-write semantics.
 
 use byteyarn::{YarnBox, YarnRef};
 
 /// A valid IMP variable, guaranteed to begin
 /// with a latin character and to have a body
-/// composed of latin characters, arabic numerals,
+/// composed of latin characters, digits,
 /// and underscores.
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct Var<'src>(YarnBox<'src, str>);
@@ -27,4 +27,3 @@ impl<'src> Var<'src> {
         self.0.as_ref()
     }
 }
-

@@ -11,7 +11,6 @@ pub mod var;
 pub mod backend;
 pub mod lexer;
 pub mod parser;
-pub mod relu;
 
 fn main() {
     println!("hello, world!");
