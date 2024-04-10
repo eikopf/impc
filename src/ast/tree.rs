@@ -25,9 +25,9 @@ where
 
 /// A SAM trait for evaluating trees.
 pub trait Evaluator<T> {
-    /// The return type of the [`Evaluator::evaluate`] method.
+    /// The return type of the [`Evaluator::eval`] method.
     type Output;
 
     /// Returns an evaluation of the given `tree` based on `self`.
-    fn evaluate(self, tree: T) -> Self::Output;
+    fn eval(self, tree: T) -> Self::Output;
 }

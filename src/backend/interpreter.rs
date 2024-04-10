@@ -3,12 +3,15 @@
 use std::{
     collections::HashMap,
     hash::Hash,
-    ops::{Add, Mul, Sub},
+    ops::{Add, BitAnd, BitOr, Deref, Mul, Not, Sub},
 };
 
 use thiserror::Error;
 
-use crate::{ast::tree::Evaluator, parser::aexp::Aexp};
+use crate::{
+    ast::tree::Evaluator,
+    parser::{aexp::Aexp, bexp::Bexp},
+};
 
 /// The state of an interpreter.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -52,35 +55,62 @@ where
 {
     type Output = Result<T, VariableBindingError<V>>;
 
-    fn evaluate(self, tree: &Aexp<V, T>) -> Self::Output {
-        // simple combinator to do `lhs op rhs` if both
-        // are ok, or to propagate errors if at least one
-        // is an error. god i wish rust had monads
-        fn join<V, T>(
-            lhs: Result<T, VariableBindingError<V>>,
-            op: fn(T, T) -> T,
-            rhs: Result<T, VariableBindingError<V>>,
-        ) -> Result<T, VariableBindingError<V>> {
-            match (lhs, rhs) {
-                (Ok(lhs), Ok(rhs)) => Ok(op(lhs, rhs)),
-                (Ok(_), Err(err)) => Err(err),
-                (Err(err), Ok(_)) => Err(err),
-                (Err(mut err1), Err(mut err2)) => {
-                    err1.0.append(&mut err2.0);
-                    Err(err1)
-                }
-            }
-        }
-
+    fn eval(self, tree: &Aexp<V, T>) -> Self::Output {
         match tree {
             Aexp::Int(int) => Ok(int.clone()),
             Aexp::Var(var) => match self.state.get(var) {
                 Some(int) => Ok(int.clone()),
                 None => Err(VariableBindingError(vec![var.clone()])),
             },
-            Aexp::Add(lhs, rhs) => join(self.evaluate(lhs), Add::add, self.evaluate(rhs)),
-            Aexp::Mul(lhs, rhs) => join(self.evaluate(lhs), Mul::mul, self.evaluate(rhs)),
-            Aexp::Sub(lhs, rhs) => join(self.evaluate(lhs), Sub::sub, self.evaluate(rhs)),
+            Aexp::Add(lhs, rhs) => join(self.eval(lhs.deref()), Add::add, self.eval(rhs.deref())),
+            Aexp::Mul(lhs, rhs) => join(self.eval(lhs.deref()), Mul::mul, self.eval(rhs.deref())),
+            Aexp::Sub(lhs, rhs) => join(self.eval(lhs.deref()), Sub::sub, self.eval(rhs.deref())),
+        }
+    }
+}
+
+impl<V, T> Evaluator<&Bexp<V, T>> for &Interpreter<V, T>
+where
+    V: Clone + Hash + Eq,
+    T: Clone + Eq + Ord + Add<Output = T> + Mul<Output = T> + Sub<Output = T>,
+{
+    type Output = Result<bool, VariableBindingError<V>>;
+
+    fn eval(self, tree: &Bexp<V, T>) -> Self::Output {
+        match tree {
+            Bexp::Atom(atom) => Ok(*atom),
+            Bexp::Eq(lhs, rhs) => join(self.eval(lhs), |a, b| a == b, self.eval(rhs)),
+            Bexp::LessThan(lhs, rhs) => join(self.eval(lhs), |a, b| a < b, self.eval(rhs)),
+            Bexp::GreaterThan(lhs, rhs) => join(self.eval(lhs), |a, b| a > b, self.eval(rhs)),
+            Bexp::Not(inner) => self.eval(inner.deref()).map(Not::not),
+            Bexp::And(lhs, rhs) => join(
+                self.eval(lhs.deref()),
+                BitAnd::bitand,
+                self.eval(rhs.deref()),
+            ),
+            Bexp::Or(lhs, rhs) => {
+                join(self.eval(lhs.deref()), BitOr::bitor, self.eval(rhs.deref()))
+            }
+        }
+    }
+}
+
+/// A simple combinator to map `op` over a pair of results iff
+/// they are both `Ok`, and to unify their errors otherwise.
+///
+/// > Effectively monadic-do for `Result<T, VariableBindingError<V>>`.
+fn join<V, T, U>(
+    lhs: Result<T, VariableBindingError<V>>,
+    op: fn(T, T) -> U,
+    rhs: Result<T, VariableBindingError<V>>,
+) -> Result<U, VariableBindingError<V>> {
+    match (lhs, rhs) {
+        (Ok(lhs), Ok(rhs)) => Ok(op(lhs, rhs)),
+        (Ok(_), Err(err)) => Err(err),
+        (Err(err), Ok(_)) => Err(err),
+        (Err(mut err1), Err(mut err2)) => {
+            err1.0.append(&mut err2.0);
+            Err(err1)
         }
     }
 }
@@ -98,22 +128,24 @@ mod tests {
             let mut bindings = HashMap::new();
             bindings.insert(Var::from("X"), 4.into());
             bindings.insert(Var::from("Y"), 0.into());
-            Interpreter { state: State(bindings) }
+            Interpreter {
+                state: State(bindings),
+            }
         };
 
         // expr: (* (- X 2) 12)
         let tokens: Tokens = "(X - 2) * 12".try_into().unwrap();
         let (_, expr): (_, Aexp<Var>) = aexp(tokens.as_ref()).unwrap();
         eprintln!("parsed expr {expr}");
-        let result = interpreter.evaluate(&expr);
+        let result = interpreter.eval(&expr);
         eprintln!("evaluation: expr = {}", result.clone().unwrap());
-        assert_eq!(result.unwrap(), 24.into());
+        assert_eq!(result.unwrap(), ImpSize::from(24));
 
         // expr: (* (- Y 2) 12)
         let tokens: Tokens = "(Y - 2) * 12".try_into().unwrap();
         let (_, expr): (_, Aexp<Var>) = aexp(tokens.as_ref()).unwrap();
         eprintln!("parsed expr {expr}");
-        let result = interpreter.evaluate(&expr);
+        let result = interpreter.eval(&expr);
         eprintln!("evaluation: expr = {}", result.clone().unwrap());
         assert_eq!(result.unwrap(), 0.into());
 
@@ -122,8 +154,11 @@ mod tests {
         let tokens: Tokens = "(Z - 2) * 12".try_into().unwrap();
         let (_, expr): (_, Aexp<Var>) = aexp(tokens.as_ref()).unwrap();
         eprintln!("parsed expr {expr}");
-        let result = interpreter.evaluate(&expr);
+        let result = interpreter.eval(&expr);
         eprintln!("encountered error: {}", result.clone().unwrap_err());
-        assert_eq!(result.unwrap_err(), VariableBindingError(vec![Var::from("Z")]));
+        assert_eq!(
+            result.unwrap_err(),
+            VariableBindingError(vec![Var::from("Z")])
+        );
     }
 }
