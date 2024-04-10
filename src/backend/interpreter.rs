@@ -2,7 +2,6 @@
 
 use std::{
     collections::HashMap,
-    convert::Infallible,
     hash::Hash,
     ops::{Add, Mul, Sub},
 };
@@ -37,33 +36,20 @@ where
     state: State<V, T>,
 }
 
-impl<'s, V, T> Evaluator<&'s State<V, T>, Aexp<V, T>> for Interpreter<V, T>
+impl<V, T> Evaluator<&Aexp<V, T>> for &Interpreter<V, T>
 where
     V: Hash + Eq,
     T: Clone + Add<Output = T> + Mul<Output = T> + Sub<Output = T>,
 {
     type Output = T;
-    type Error = Infallible;
 
-    fn evaluate(
-        tree: Aexp<V, T>,
-        state: &'s State<V, T>,
-    ) -> Result<(Self::Output, &'s State<V, T>), Self::Error> {
-        Ok((evaluate_aexp(state, tree), state))
-    }
-}
-
-/// Evaluates the given `expr` based on some `state`.
-fn evaluate_aexp<V, T>(state: &State<V, T>, expr: Aexp<V, T>) -> T
-where
-    V: Hash + Eq,
-    T: Clone + Add<Output = T> + Mul<Output = T> + Sub<Output = T>,
-{
-    match expr {
-        Aexp::Int(int) => int,
-        Aexp::Var(var) => state.get(&var).unwrap().clone(),
-        Aexp::Add(lhs, rhs) => evaluate_aexp(state, *lhs) + evaluate_aexp(state, *rhs),
-        Aexp::Mul(lhs, rhs) => evaluate_aexp(state, *lhs) * evaluate_aexp(state, *rhs),
-        Aexp::Sub(lhs, rhs) => evaluate_aexp(state, *lhs) - evaluate_aexp(state, *rhs),
+    fn evaluate(self, tree: &Aexp<V, T>) -> Self::Output {
+        match tree {
+            Aexp::Int(int) => int.clone(),
+            Aexp::Var(var) => self.state.get(var).unwrap().clone(),
+            Aexp::Add(lhs, rhs) => self.evaluate(lhs) + self.evaluate(rhs),
+            Aexp::Mul(lhs, rhs) => self.evaluate(lhs) * self.evaluate(rhs),
+            Aexp::Sub(lhs, rhs) => self.evaluate(lhs) - self.evaluate(rhs),
+        }
     }
 }
