@@ -45,11 +45,10 @@ use nom::{
 use num_traits::Unsigned;
 
 use crate::{
-    ast::tree::{NodeCount, Tree},
-    lexer::{
+    ast::tree::{NodeCount, Tree}, int::ImpSize, lexer::{
         token::{Token, TokensRef},
         var::Var,
-    },
+    }
 };
 
 use super::util::binary_expr;
@@ -67,7 +66,7 @@ use super::util::binary_expr;
 /// on this type produces an appropriate lisp-style
 /// s-expression.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Aexp<V, T = usize> {
+pub enum Aexp<V, T = ImpSize> {
     /// An integer.
     Int(T),
     /// A variable name.

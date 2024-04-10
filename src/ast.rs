@@ -4,8 +4,7 @@ use nom::Finish;
 use thiserror::Error;
 
 use crate::{
-    lexer::{token::TokensRef, var::Var},
-    parser::cmd::{cmd, Cmd},
+    int::ImpSize, lexer::{token::TokensRef, var::Var}, parser::cmd::{cmd, Cmd}
 };
 
 use self::tree::Tree;
@@ -21,7 +20,7 @@ pub struct AstParseError<'buf, 'src, T> {
 
 /// An abstract syntax tree for an IMP program.
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct Ast<V = Var<'static>, T = usize> {
+pub struct Ast<V = Var<'static>, T = ImpSize> {
     /// The root of this tree.
     root: Cmd<V, T>,
 }
@@ -73,11 +72,11 @@ mod tests {
 
     #[test]
     fn test_ast_map_impl() {
-        let tokens: Tokens = "X := 1; Y := 2; Z := 3".try_into().unwrap();
-        let ast: Ast = tokens.as_ref().try_into().unwrap();
+        let tokens: Tokens<'_, usize> = "X := 1; Y := 2; Z := 3".try_into().unwrap();
+        let ast: Ast<_, usize> = tokens.as_ref().try_into().unwrap();
         dbg!(ast.clone());
 
-        fn count(node: Cmd<Var<'_>>) -> usize {
+        fn count(node: Cmd<Var<'_>, usize>) -> usize {
             // recursive definition:
             // the number of nodes in a tree is 1 + the number of nodes in all subtrees
             1 + match node {

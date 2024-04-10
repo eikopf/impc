@@ -51,11 +51,10 @@ use nom::{
 };
 
 use crate::{
-    ast::tree::Tree,
-    lexer::{
+    ast::tree::Tree, int::ImpSize, lexer::{
         token::{Token, TokensRef},
         var::Var,
-    },
+    }
 };
 
 use super::{
@@ -66,7 +65,7 @@ use super::{
 
 /// An IMP command.
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub enum Cmd<V, T = usize> {
+pub enum Cmd<V, T = ImpSize> {
     /// A no-op command, corresponding to [`Token::Skip`].
     Skip,
     /// A variable assignment command, corresponding to [`Token::Assign`].

@@ -37,11 +37,10 @@ use nom::{
 };
 
 use crate::{
-    ast::tree::Tree,
-    lexer::{
+    ast::tree::Tree, int::ImpSize, lexer::{
         token::{Token, TokensRef},
         var::Var,
-    },
+    }
 };
 
 use super::{
@@ -51,7 +50,7 @@ use super::{
 
 /// A boolean expression.
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub enum Bexp<V, T = usize> {
+pub enum Bexp<V, T = ImpSize> {
     /// A boolean value.
     Atom(bool),
     /// The equality comparison, corresponding to [`Token::Equals`].
