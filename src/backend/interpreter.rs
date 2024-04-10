@@ -6,6 +6,8 @@ use std::{
     ops::{Add, Mul, Sub},
 };
 
+use thiserror::Error;
+
 use crate::{ast::tree::Evaluator, parser::aexp::Aexp};
 
 /// The state of an interpreter.
@@ -24,6 +26,13 @@ where
     }
 }
 
+/// The error type produced by an [`Interpreter`] when
+/// attempting to read unbound variables while evaluating
+/// arithmetic expressions.
+#[derive(Debug, Clone, Error, PartialEq, Eq)]
+#[error("The following variables are unbound: {0:?}")]
+pub struct VariableBindingError<V>(Vec<V>);
+
 /// A tree-walk interpreter for IMP programs, which
 /// executes programs by walking the tree, evaluating
 /// expressions, and updating internal state.
@@ -41,23 +50,23 @@ where
     V: Clone + Hash + Eq,
     T: Clone + Add<Output = T> + Mul<Output = T> + Sub<Output = T>,
 {
-    type Output = Result<T, Vec<V>>;
+    type Output = Result<T, VariableBindingError<V>>;
 
     fn evaluate(self, tree: &Aexp<V, T>) -> Self::Output {
         // simple combinator to do `lhs op rhs` if both
         // are ok, or to propagate errors if at least one
         // is an error. god i wish rust had monads
         fn join<V, T>(
-            lhs: Result<T, Vec<V>>,
+            lhs: Result<T, VariableBindingError<V>>,
             op: fn(T, T) -> T,
-            rhs: Result<T, Vec<V>>,
-        ) -> Result<T, Vec<V>> {
+            rhs: Result<T, VariableBindingError<V>>,
+        ) -> Result<T, VariableBindingError<V>> {
             match (lhs, rhs) {
                 (Ok(lhs), Ok(rhs)) => Ok(op(lhs, rhs)),
                 (Ok(_), Err(err)) => Err(err),
                 (Err(err), Ok(_)) => Err(err),
                 (Err(mut err1), Err(mut err2)) => {
-                    err1.append(&mut err2);
+                    err1.0.append(&mut err2.0);
                     Err(err1)
                 }
             }
@@ -67,7 +76,7 @@ where
             Aexp::Int(int) => Ok(int.clone()),
             Aexp::Var(var) => match self.state.get(var) {
                 Some(int) => Ok(int.clone()),
-                None => Err(vec![var.clone()]),
+                None => Err(VariableBindingError(vec![var.clone()])),
             },
             Aexp::Add(lhs, rhs) => join(self.evaluate(lhs), Add::add, self.evaluate(rhs)),
             Aexp::Mul(lhs, rhs) => join(self.evaluate(lhs), Mul::mul, self.evaluate(rhs)),
@@ -114,7 +123,7 @@ mod tests {
         let (_, expr): (_, Aexp<Var>) = aexp(tokens.as_ref()).unwrap();
         eprintln!("parsed expr {expr}");
         let result = interpreter.evaluate(&expr);
-        eprintln!("encountered error: {:?}", result.clone().unwrap_err());
-        assert_eq!(result.unwrap_err(), vec![Var::from("Z")]);
+        eprintln!("encountered error: {}", result.clone().unwrap_err());
+        assert_eq!(result.unwrap_err(), VariableBindingError(vec![Var::from("Z")]));
     }
 }
