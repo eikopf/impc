@@ -3,16 +3,23 @@
 use std::str::FromStr;
 
 use nom::{
-    branch::alt, character::complete::multispace0, combinator::all_consuming, error::VerboseError,
-    multi::many0, sequence::delimited, Finish, IResult, Parser,
+    branch::alt,
+    bytes::complete::take_while1,
+    character::{complete::multispace0, is_alphanumeric},
+    combinator::{all_consuming, verify},
+    error::VerboseError,
+    multi::many0,
+    sequence::delimited,
+    Finish, IResult, Parser,
 };
 
 use token::Token;
 
+use crate::var::Var;
+
 pub mod int;
 pub mod symbol;
 pub mod token;
-pub mod var;
 
 /// The general return type for [`crate::lexer`] parsers.
 pub type LexResult<'src, T> = IResult<&'src str, Token<'src, T>, VerboseError<&'src str>>;
@@ -22,7 +29,7 @@ pub type LexResult<'src, T> = IResult<&'src str, Token<'src, T>, VerboseError<&'
 pub fn parse_tokens<T: FromStr>(input: &str) -> Result<Vec<Token<'_, T>>, VerboseError<&str>> {
     all_consuming(many0(delimited(
         multispace0,
-        alt((symbol::glyph, symbol::keyword, int::int, var::var)),
+        alt((symbol::glyph, symbol::keyword, int::int, var)),
         multispace0,
     )))
     .parse(input)
@@ -34,11 +41,34 @@ pub fn parse_tokens<T: FromStr>(input: &str) -> Result<Vec<Token<'_, T>>, Verbos
     .map_err(|err| VerboseError { errors: err.errors })
 }
 
+/// Parses a [`Token::Var`] from `input`.
+pub fn var<T>(input: &str) -> LexResult<'_, T> {
+    verify(
+        take_while1(|c: char| is_alphanumeric(c as u8) || c == '_'),
+        |s: &str| !s.starts_with('_'),
+    )
+    .parse(input)
+    .map(|(tail, name)| (tail, Token::Var(Var::from(name))))
+}
+
 #[cfg(test)]
 mod tests {
     use nom::error::convert_error;
 
     use super::*;
+
+    #[test]
+    fn var_parser_is_correct() {
+        assert!(var::<usize>("Var_name trailing")
+            .is_ok_and(|res| res == (" trailing", Token::Var(Var::from("Var_name")))));
+
+        assert!(var::<usize>("_illegal_name").is_err());
+
+        assert!(var::<usize>("X").is_ok());
+        assert!(var::<usize>("X := ").is_ok());
+        assert!(var::<usize>("X := 13").is_ok());
+        assert!(var::<usize>("X := 13;").is_ok());
+    }
 
     #[test]
     fn check_small_example_program() {

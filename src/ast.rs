@@ -4,7 +4,9 @@ use nom::Finish;
 use thiserror::Error;
 
 use crate::{
-    int::ImpSize, lexer::{token::TokensRef, var::Var}, parser::cmd::{cmd, Cmd}
+    int::ImpSize,
+    lexer::token::TokensRef,
+    parser::cmd::{cmd, Cmd}, var::Var,
 };
 
 use self::tree::Tree;

@@ -45,10 +45,9 @@ use nom::{
 use num_traits::Unsigned;
 
 use crate::{
-    ast::tree::{NodeCount, Tree}, int::ImpSize, lexer::{
-        token::{Token, TokensRef},
-        var::Var,
-    }
+    ast::tree::{NodeCount, Tree},
+    int::ImpSize,
+    lexer::token::{Token, TokensRef}, var::Var,
 };
 
 use super::util::binary_expr;

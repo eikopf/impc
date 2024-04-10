@@ -51,10 +51,7 @@ use nom::{
 };
 
 use crate::{
-    ast::tree::Tree, int::ImpSize, lexer::{
-        token::{Token, TokensRef},
-        var::Var,
-    }
+    ast::tree::Tree, int::ImpSize, lexer::token::{Token, TokensRef}, var::Var
 };
 
 use super::{
