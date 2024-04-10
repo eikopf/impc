@@ -2,7 +2,7 @@
 
 use std::{
     fmt::{Binary, Display, LowerExp, LowerHex, Octal, UpperExp, UpperHex},
-    ops::{Add, Deref, Div, Mul, Rem, Sub},
+    ops::{Add, Deref, Div, Mul, Rem, Sub}, str::FromStr,
 };
 
 use num_traits::{Bounded, ConstOne, ConstZero, Num, One, SaturatingSub, Unsigned, Zero};
@@ -72,6 +72,14 @@ impl<T> Deref for ImpInt<T> {
     #[inline(always)]
     fn deref(&self) -> &Self::Target {
         &self.0
+    }
+}
+
+impl<T: FromStr> FromStr for ImpInt<T> {
+    type Err = <T as FromStr>::Err;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        T::from_str(s).map(Self)
     }
 }
 

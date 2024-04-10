@@ -51,7 +51,10 @@ use nom::{
 };
 
 use crate::{
-    ast::tree::Tree, int::ImpSize, lexer::token::{Token, TokensRef}, var::Var
+    ast::tree::Tree,
+    int::ImpSize,
+    lexer::token::{Token, TokensRef},
+    var::Var,
 };
 
 use super::{
@@ -223,7 +226,7 @@ mod tests {
 
     #[test]
     fn check_cmd_parser() {
-        let tokens: Tokens<'_> = "X := 0; Y := 1; Z := 2".try_into().unwrap();
+        let tokens: Tokens<'_, usize> = "X := 0; Y := 1; Z := 2".try_into().unwrap();
         let (tail, program) = cmd(tokens.as_ref()).unwrap();
         eprintln!("{program}");
 
@@ -239,9 +242,10 @@ mod tests {
             )
         );
 
-        let tokens: Tokens = "Y := 3; while X <> Y do X := Y; Y := 0; Z := X + Y od; Z := 4"
-            .try_into()
-            .unwrap();
+        let tokens: Tokens<'_, usize> =
+            "Y := 3; while X <> Y do X := Y; Y := 0; Z := X + Y od; Z := 4"
+                .try_into()
+                .unwrap();
         let (tail, program) = cmd(tokens.as_ref()).unwrap();
         dbg!(tail.clone(), program.clone());
         eprintln!("{program}");
@@ -273,7 +277,7 @@ mod tests {
             )
         );
 
-        let tokens: Tokens = "if X < 13 then skip; skip; skip else Y := Y - 1 fi"
+        let tokens: Tokens<'_, usize> = "if X < 13 then skip; skip; skip else Y := Y - 1 fi"
             .try_into()
             .unwrap();
         let (tail, program) = cmd(tokens.as_ref()).unwrap();
