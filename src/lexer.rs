@@ -5,8 +5,8 @@ use std::str::FromStr;
 use nom::{
     branch::alt,
     bytes::complete::take_while1,
-    character::{complete::multispace0, is_alphanumeric},
-    combinator::{all_consuming, verify},
+    character::{complete::{digit1, multispace0}, is_alphanumeric},
+    combinator::{all_consuming, map_res, verify},
     error::VerboseError,
     multi::many0,
     sequence::delimited,
@@ -17,7 +17,6 @@ use token::Token;
 
 use crate::var::Var;
 
-pub mod int;
 pub mod symbol;
 pub mod token;
 
@@ -29,7 +28,7 @@ pub type LexResult<'src, T> = IResult<&'src str, Token<'src, T>, VerboseError<&'
 pub fn parse_tokens<T: FromStr>(input: &str) -> Result<Vec<Token<'_, T>>, VerboseError<&str>> {
     all_consuming(many0(delimited(
         multispace0,
-        alt((symbol::glyph, symbol::keyword, int::int, var)),
+        alt((symbol::glyph, symbol::keyword, int, var)),
         multispace0,
     )))
     .parse(input)
@@ -49,6 +48,13 @@ pub fn var<T>(input: &str) -> LexResult<'_, T> {
     )
     .parse(input)
     .map(|(tail, name)| (tail, Token::Var(Var::from(name))))
+}
+
+/// Parses a [`Token::Int`] from `input`.
+pub fn int<T: FromStr>(input: &str) -> LexResult<'_, T> {
+    map_res(digit1, T::from_str)
+        .parse(input)
+        .map(|(tail, value)| (tail, Token::Int(value)))
 }
 
 #[cfg(test)]
