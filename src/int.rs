@@ -30,7 +30,7 @@ macro_rules! imp_int_impls {
             pub const MAX: Self = Self(<$int>::MAX);
         }
 
-        // static assertion to verify that minimum values are exactly zero.
+        // assertion: INT::MIN == INT::ZERO
         crate::sa::const_assert_eq!(ImpInt::<$int>::MIN.0, <$int>::ZERO);
     };
 
