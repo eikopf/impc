@@ -1,4 +1,4 @@
-//! Simple lexer for `.imp` files.
+//! A simple zero-copy lexer for IMP programs.
 
 use std::str::FromStr;
 

@@ -1,4 +1,4 @@
-//! A compiler-frontend [`Var`] type providing borrowed copy-on-write semantics.
+//! The compiler-frontend [`Var`] type, providing copy-on-write semantics.
 
 use byteyarn::{YarnBox, YarnRef};
 
