@@ -10,7 +10,7 @@ use thiserror::Error;
 
 use crate::{
     ast::tree::Evaluator,
-    parser::{aexp::Aexp, bexp::Bexp},
+    parser::{aexp::Aexp, bexp::Bexp, cmd::Cmd},
 };
 
 /// The state of an interpreter.
@@ -95,6 +95,51 @@ where
     }
 }
 
+impl<V, T> Evaluator<&Cmd<V, T>> for Interpreter<V, T>
+where
+    V: Clone + Hash + Eq,
+    T: Clone + Eq + Ord + Add<Output = T> + Mul<Output = T> + Sub<Output = T>,
+{
+    type Output = Result<State<V, T>, VariableBindingError<V>>;
+
+    fn eval(mut self, tree: &Cmd<V, T>) -> Self::Output {
+        match tree {
+            Cmd::Skip => Ok(self.state),
+            Cmd::Assign(var, expr) => {
+                let rhs = (&self).eval(expr)?;
+                let _ = self.state.0.insert(var.clone(), rhs);
+                Ok(self.state)
+            }
+            Cmd::Seq(first, second) => {
+                let state = self.eval(first)?;
+                self = Interpreter { state };
+                self.eval(second)
+            }
+            Cmd::If {
+                cond,
+                true_case,
+                false_case,
+            } => match (&self).eval(cond)? {
+                true => self.eval(true_case),
+                false => self.eval(false_case),
+            },
+            Cmd::While(cond, body) => {
+                loop {
+                    match (&self).eval(cond)? {
+                        true => {
+                            let state = self.eval(body)?;
+                            self = Interpreter { state };
+                        }
+                        false => break,
+                    }
+                }
+
+                Ok(self.state)
+            }
+        }
+    }
+}
+
 /// A simple combinator to map `op` over a pair of results iff
 /// they are both `Ok`, and to unify their errors otherwise.
 ///
@@ -117,7 +162,7 @@ fn join<V, T, U>(
 
 #[cfg(test)]
 mod tests {
-    use crate::{int::ImpSize, lexer::token::Tokens, parser::aexp::aexp, var::Var};
+    use crate::{ast::{tree::Tree, Ast}, int::ImpSize, lexer::token::Tokens, parser::aexp::aexp, var::Var};
 
     use super::*;
 
@@ -137,7 +182,7 @@ mod tests {
         let tokens: Tokens = "(X - 2) * 12".try_into().unwrap();
         let (_, expr): (_, Aexp<Var>) = aexp(tokens.as_ref()).unwrap();
         eprintln!("parsed expr {expr}");
-        let result = interpreter.eval(&expr);
+        let result = (&interpreter).eval(&expr);
         eprintln!("evaluation: expr = {}", result.clone().unwrap());
         assert_eq!(result.unwrap(), ImpSize::from(24));
 
@@ -145,7 +190,7 @@ mod tests {
         let tokens: Tokens = "(Y - 2) * 12".try_into().unwrap();
         let (_, expr): (_, Aexp<Var>) = aexp(tokens.as_ref()).unwrap();
         eprintln!("parsed expr {expr}");
-        let result = interpreter.eval(&expr);
+        let result = (&interpreter).eval(&expr);
         eprintln!("evaluation: expr = {}", result.clone().unwrap());
         assert_eq!(result.unwrap(), 0.into());
 
@@ -154,11 +199,45 @@ mod tests {
         let tokens: Tokens = "(Z - 2) * 12".try_into().unwrap();
         let (_, expr): (_, Aexp<Var>) = aexp(tokens.as_ref()).unwrap();
         eprintln!("parsed expr {expr}");
-        let result = interpreter.eval(&expr);
+        let result = (&interpreter).eval(&expr);
         eprintln!("encountered error: {}", result.clone().unwrap_err());
         assert_eq!(
             result.unwrap_err(),
             VariableBindingError(vec![Var::from("Z")])
         );
+    }
+
+    #[test]
+    fn check_complete_evaluator_impl() {
+        let interpreter: Interpreter<Var, ImpSize> = {
+            let mut bindings = HashMap::new();
+            bindings.insert(Var::from("X"), 0.into());
+            Interpreter {
+                state: State(bindings),
+            }
+        };
+
+        let program = r#"
+            X := 1; 
+            Y := 7; 
+            Z := 9; 
+            if (false or X = 3) then 
+                skip; 
+                Z := 2 
+            else 
+                Z := 1 
+            fi
+        "#;
+
+        let tokens = Tokens::<'_, ImpSize>::try_from(program).unwrap();
+        let ast = Ast::try_from(tokens.as_ref()).unwrap();
+        eprintln!("ast:\n{}", ast.clone().root());
+
+        let result = ast.map(|root| interpreter.eval(&root));
+        assert!(result.is_ok_and(|state|{
+            state.get(&Var::from("X")).is_some_and(|&x| x == 1.into())
+            && state.get(&Var::from("Y")).is_some_and(|&y| y == 7.into())
+            && state.get(&Var::from("Z")).is_some_and(|&z| z == 1.into())
+        }));
     }
 }
