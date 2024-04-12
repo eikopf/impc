@@ -6,7 +6,7 @@ use byteyarn::{YarnBox, YarnRef};
 /// with a latin character and to have a body
 /// composed of latin characters, digits,
 /// and underscores.
-#[derive(Debug, PartialEq, Eq, Clone, Hash)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
 pub struct Var<'src>(YarnBox<'src, str>);
 
 impl<'src> std::fmt::Display for Var<'src> {

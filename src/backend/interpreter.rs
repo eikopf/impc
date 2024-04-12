@@ -140,6 +140,12 @@ where
     }
 }
 
+impl<V, T> From<HashMap<V, T>> for Interpreter<V, T> where V: Hash + Eq {
+    fn from(value: HashMap<V, T>) -> Self {
+        Interpreter { state: State(value) }
+    }
+}
+
 /// A simple combinator to map `op` over a pair of results iff
 /// they are both `Ok`, and to unify their errors otherwise.
 ///
