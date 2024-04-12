@@ -42,6 +42,8 @@
 //! ... other terms omitted ...
 //! ```
 
+use std::{collections::HashSet, hash::Hash};
+
 use nom::{
     branch::alt,
     bytes::complete::tag,
@@ -60,6 +62,7 @@ use crate::{
 use super::{
     aexp::{aexp, Aexp},
     bexp::{bexp, Bexp},
+    expr::Expr,
     util::{binary_expr, unbox2},
 };
 
@@ -132,6 +135,46 @@ impl<V, T> Tree for Cmd<V, T> {
         F: FnOnce(Self::Node) -> U,
     {
         op(self)
+    }
+}
+
+impl<V, T> Expr for Cmd<V, T>
+where
+    V: Eq + Hash,
+{
+    type Name = V;
+
+    fn names(&self) -> HashSet<&Self::Name> {
+        match self {
+            Cmd::Skip => HashSet::new(),
+            Cmd::Assign(var, rhs) => rhs
+                .names()
+                .union(&HashSet::from([var]))
+                .map(Clone::clone)
+                .collect(),
+            Cmd::Seq(first, second) => first
+                .names()
+                .union(&second.names())
+                .map(Clone::clone)
+                .collect(),
+            Cmd::If {
+                cond,
+                true_case,
+                false_case,
+            } => cond
+                .names()
+                .union(&true_case.names())
+                .map(Clone::clone)
+                .collect::<HashSet<_>>()
+                .union(&false_case.names())
+                .map(Clone::clone)
+                .collect(),
+            Cmd::While(cond, body) => cond
+                .names()
+                .union(&body.names())
+                .map(Clone::clone)
+                .collect(),
+        }
     }
 }
 

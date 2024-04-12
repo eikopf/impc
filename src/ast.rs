@@ -1,12 +1,15 @@
 //! Abstract syntax trees and associated transformations.
 
+use std::{collections::HashSet, hash::Hash};
+
 use nom::Finish;
 use thiserror::Error;
 
 use crate::{
     int::ImpSize,
     lexer::token::TokensRef,
-    parser::cmd::{cmd, Cmd}, var::Var,
+    parser::{cmd::{cmd, Cmd}, expr::Expr},
+    var::Var,
 };
 
 use self::tree::Tree;
@@ -57,12 +60,9 @@ impl<V, T> Tree for Ast<V, T> {
 }
 
 impl<V, T> Ast<V, T> {
-    /// Consumes `self` and applies the given function `f` to its `root`.
-    pub fn map<F, U>(self, f: F) -> U
-    where
-        F: FnOnce(Cmd<V, T>) -> U,
-    {
-        f(self.root)
+    /// Returns the variables mentioned in `self`.
+    pub fn names(&self) -> HashSet<&V> where V: Eq + Hash {
+        self.root.names()
     }
 }
 
@@ -77,6 +77,7 @@ mod tests {
         let tokens: Tokens<'_, usize> = "X := 1; Y := 2; Z := 3".try_into().unwrap();
         let ast: Ast<_, usize> = tokens.as_ref().try_into().unwrap();
         dbg!(ast.clone());
+        dbg!(ast.clone().names());
 
         fn count(node: Cmd<Var<'_>, usize>) -> usize {
             // recursive definition:

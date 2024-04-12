@@ -13,4 +13,5 @@
 pub mod aexp;
 pub mod bexp;
 pub mod cmd;
+pub mod expr;
 mod util;

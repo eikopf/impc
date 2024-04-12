@@ -26,7 +26,11 @@
 //! # Desugaring
 //! To avoid code duplication, the inequality (`<>`) operator is desugared as `not <lhs> = <rhs>`.
 
-use std::ops::{BitAnd, BitOr, Not};
+use std::{
+    collections::HashSet,
+    hash::Hash,
+    ops::{BitAnd, BitOr, Not},
+};
 
 use nom::{
     branch::alt,
@@ -45,6 +49,7 @@ use crate::{
 
 use super::{
     aexp::{aexp, Aexp},
+    expr::Expr,
     util::binary_expr,
 };
 
@@ -127,6 +132,28 @@ impl<V, T> Tree for Bexp<V, T> {
         F: FnOnce(Self::Node) -> U,
     {
         op(self)
+    }
+}
+
+impl<V, T> Expr for Bexp<V, T>
+where
+    V: Eq + Hash,
+{
+    type Name = V;
+
+    fn names(&self) -> HashSet<&Self::Name> {
+        match self {
+            Bexp::Atom(_) => HashSet::new(),
+            Bexp::Eq(lhs, rhs) | Bexp::LessThan(lhs, rhs) | Bexp::GreaterThan(lhs, rhs) => {
+                HashSet::union(&lhs.names(), &rhs.names())
+                    .map(Clone::clone)
+                    .collect()
+            }
+            Bexp::Not(inner) => inner.names(),
+            Bexp::And(lhs, rhs) | Bexp::Or(lhs, rhs) => HashSet::union(&lhs.names(), &rhs.names())
+                .map(Clone::clone)
+                .collect(),
+        }
     }
 }
 

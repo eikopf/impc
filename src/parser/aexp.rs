@@ -37,7 +37,11 @@
 //!     | '(' aexp ')'
 //! ```
 
-use std::ops::{Add, Mul, Sub};
+use std::{
+    collections::HashSet,
+    hash::Hash,
+    ops::{Add, Mul, Sub},
+};
 
 use nom::{
     branch::alt, bytes::complete::tag, combinator::fail, sequence::delimited, IResult, Parser,
@@ -47,10 +51,11 @@ use num_traits::Unsigned;
 use crate::{
     ast::tree::{NodeCount, Tree},
     int::ImpSize,
-    lexer::token::{Token, TokensRef}, var::Var,
+    lexer::token::{Token, TokensRef},
+    var::Var,
 };
 
-use super::util::binary_expr;
+use super::{expr::Expr, util::binary_expr};
 
 /// An arithmetic expression.
 ///
@@ -175,6 +180,25 @@ where
                 }
                 Self::Int(_) | Self::Var(_) => U::zero(),
             }
+    }
+}
+
+impl<V, T> Expr for Aexp<V, T>
+where
+    V: Eq + Hash,
+{
+    type Name = V;
+
+    fn names(&self) -> HashSet<&Self::Name> {
+        match self {
+            Aexp::Int(_) => HashSet::new(),
+            Aexp::Var(var) => HashSet::from([var]),
+            Aexp::Add(lhs, rhs) | Aexp::Mul(lhs, rhs) | Aexp::Sub(lhs, rhs) => {
+                HashSet::union(&lhs.names(), &rhs.names())
+                    .map(Clone::clone)
+                    .collect()
+            }
+        }
     }
 }
 
