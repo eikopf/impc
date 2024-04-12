@@ -124,14 +124,12 @@ where
                 false => self.eval(false_case),
             },
             Cmd::While(cond, body) => {
-                loop {
-                    match (&self).eval(cond)? {
-                        true => {
-                            let state = self.eval(body)?;
-                            self = Interpreter { state };
-                        }
-                        false => break,
-                    }
+                // this is an utterly inscrutable piece of rust syntax that
+                // basic just desugars to a match statement in a loop block,
+                // and where the false branch immediately breaks the loop
+                while let true = (&self).eval(cond)? {
+                    let state = self.eval(body)?;
+                    self = Interpreter { state };
                 }
 
                 Ok(self.state)
@@ -140,9 +138,14 @@ where
     }
 }
 
-impl<V, T> From<HashMap<V, T>> for Interpreter<V, T> where V: Hash + Eq {
+impl<V, T> From<HashMap<V, T>> for Interpreter<V, T>
+where
+    V: Hash + Eq,
+{
     fn from(value: HashMap<V, T>) -> Self {
-        Interpreter { state: State(value) }
+        Interpreter {
+            state: State(value),
+        }
     }
 }
 
@@ -168,7 +171,13 @@ fn join<V, T, U>(
 
 #[cfg(test)]
 mod tests {
-    use crate::{ast::{tree::Tree, Ast}, int::ImpSize, lexer::token::Tokens, parser::aexp::aexp, var::Var};
+    use crate::{
+        ast::{tree::Tree, Ast},
+        int::ImpSize,
+        lexer::token::Tokens,
+        parser::aexp::aexp,
+        var::Var,
+    };
 
     use super::*;
 
@@ -240,10 +249,10 @@ mod tests {
         eprintln!("ast:\n{}", ast.clone().root());
 
         let result = ast.map(|root| interpreter.eval(&root));
-        assert!(result.is_ok_and(|state|{
+        assert!(result.is_ok_and(|state| {
             state.get(&Var::from("X")).is_some_and(|&x| x == 1.into())
-            && state.get(&Var::from("Y")).is_some_and(|&y| y == 7.into())
-            && state.get(&Var::from("Z")).is_some_and(|&z| z == 1.into())
+                && state.get(&Var::from("Y")).is_some_and(|&y| y == 7.into())
+                && state.get(&Var::from("Z")).is_some_and(|&z| z == 1.into())
         }));
     }
 }
