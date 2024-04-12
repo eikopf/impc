@@ -55,7 +55,6 @@ fn main() {
                 .expect("Could not read a valid string");
             let value = ImpSize::from_str_radix(&buf.trim(), 10)
                 .expect("Could not parse input as an integer");
-            //println!();
             bindings.insert(name.clone(), value);
         }
 
@@ -64,6 +63,7 @@ fn main() {
 
     let result = interpreter.eval(&ast.root());
 
+    println!();
     match result {
         Ok(state) => println!("Got result: {state:?}"),
         Err(err) => println!("Got error: {err}"),
