@@ -3,13 +3,10 @@
 version = 3
 
 [[package]]
-name = "anyerror"
-version = "0.1.12"
+name = "anyhow"
+version = "1.0.82"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bcd04a72664a65fb9adeae7ced0c98efd68a2b7a45adda8319b3bb36538404b8"
-dependencies = [
- "serde",
-]
+checksum = "f538837af36e6f6a9be0faa67f9a314f8119e4e4b5867c6ab40ed60360142519"
 
 [[package]]
 name = "argh"
@@ -76,7 +73,7 @@ dependencies = [
 name = "impc"
 version = "0.1.0"
 dependencies = [
- "anyerror",
+ "anyhow",
  "argh",
  "byteyarn",
  "nom",
