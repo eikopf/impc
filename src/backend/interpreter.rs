@@ -124,10 +124,7 @@ where
                 false => self.eval(false_case),
             },
             Cmd::While(cond, body) => {
-                // this is an utterly inscrutable piece of rust syntax that
-                // basic just desugars to a match statement in a loop block,
-                // and where the false branch immediately breaks the loop
-                while let true = (&self).eval(cond)? {
+                while (&self).eval(cond)? {
                     let state = self.eval(body)?;
                     self = Interpreter { state };
                 }

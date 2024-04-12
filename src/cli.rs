@@ -21,7 +21,7 @@ use nom::{
 };
 
 /// A compiler for the IMP programming language.
-#[derive(Debug, FromArgs)]
+#[derive(Debug, Clone, FromArgs)]
 pub struct Cli {
     #[argh(subcommand)]
     cmd: CliSubCommand,
@@ -35,24 +35,23 @@ impl Cli {
 }
 
 /// The set of the distinct subcommands available to be passed to the [`Cli`].
-#[derive(Debug, FromArgs)]
+#[derive(Debug, Clone, FromArgs)]
 #[argh(subcommand)]
 enum CliSubCommand {
-    /// The simplest possible invocation of `impc`, which runs a `.imp`
-    /// file before printing the result and immediately exiting.
     Run(Run),
 }
 
-/// Runs an .imp file, optionally using the given backend and bindings. If bindings are not
-/// provided, they will be assigned by an interactive prompt.
-#[derive(Debug, FromArgs)]
+/// Runs an .imp file, optionally using a particular backend and/or provided variable bindings.
+/// If bindings are not provided, they will be assigned via interactive prompt.
+#[derive(Debug, Clone, FromArgs)]
 #[argh(subcommand, name = "run")]
 struct Run {
-    /// the chosen backend (defaults to interpreter)
+    /// selects a particular backend (defaults to interpreter)
     #[argh(option, short = 'b', default = "Backend::default()")]
     backend: Backend,
 
-    /// a JSON-formatted list of variable bindings
+    /// defines a set of variable bindings via a comma-separated list
+    /// (e.g. {{ X: 2, Y: 0 }}), where the empty set is given by {{}}
     #[argh(option, long = "let", short = 'l')]
     bindings: Option<Bindings>,
 
@@ -63,7 +62,7 @@ struct Run {
 
 /// A simple set of marker values, corresponding to particular implementations
 /// of the [`crate::backend::Backend`] trait.
-#[derive(Debug, Default)]
+#[derive(Debug, Clone, Copy, Default)]
 enum Backend {
     /// Indicates that the selected backend is the [`interpreter`](crate::backend::interpreter).
     #[default]
@@ -86,7 +85,7 @@ impl FromStr for Backend {
 
 /// A set of name-value pairs that can be optionally provided to some subcommands,
 /// thereby avoiding having to explicitly bind these values interactively.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct Bindings {
     /// The actual key-value pairs, mapping names to their bound values.
     map: HashMap<String, usize>,
