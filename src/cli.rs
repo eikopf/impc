@@ -13,8 +13,8 @@ use argh::FromArgs;
 use nom::{
     bytes::complete::tag,
     character::complete::{alphanumeric1, digit1, multispace0},
-    combinator::{map_res, opt},
-    error::Error,
+    combinator::{cut, map_res, opt},
+    error::{context, VerboseError},
     multi::separated_list0,
     sequence::{delimited, pair, separated_pair},
     Finish, Parser,
@@ -78,7 +78,9 @@ impl FromStr for Backend {
         match s {
             "interpreter" => Ok(Self::Interpreter),
             "bytecode" => Ok(Self::ByteCode),
-            other => Err(String::from(other)),
+            other => Err(format!(
+                "expected either 'interpreter' or 'bytecode', but received '{other}' instead."
+            )),
         }
     }
 }
@@ -92,17 +94,30 @@ struct Bindings {
 }
 
 impl FromStr for Bindings {
-    type Err = Error<String>;
+    type Err = String;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         delimited(
             pair(tag("{"), opt(multispace0)),
             separated_list0(
                 delimited(multispace0, tag(","), multispace0),
-                separated_pair(
-                    alphanumeric1,
-                    delimited(multispace0, tag(":"), multispace0),
-                    map_res(digit1, <usize>::from_str),
+                context(
+                    "expected name-value binding",
+                    cut(separated_pair(
+                        cut(context("expected name", alphanumeric1)),
+                        delimited(
+                            multispace0,
+                            context("expected colon", tag(":")),
+                            multispace0,
+                        ),
+                        cut(context(
+                            "parse digits into pointer-sized unsigned integer",
+                            map_res(
+                                context("expected a digit sequence", digit1),
+                                <usize>::from_str,
+                            ),
+                        )),
+                    )),
                 ),
             ),
             pair(opt(multispace0), tag("}")),
@@ -115,7 +130,10 @@ impl FromStr for Bindings {
                 .map(|(name, value)| (String::from(name), value))
                 .collect::<HashMap<String, usize>>(),
         })
-        .map_err(|err: Error<&str>| Error::new(String::from(err.input), err.code))
+        .map_err(|err: VerboseError<&str>| {
+            let trace = nom::error::convert_error(s, err);
+            format!("\nerror trace:\n{trace}")
+        })
     }
 }
 
