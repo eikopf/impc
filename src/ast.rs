@@ -8,7 +8,10 @@ use thiserror::Error;
 use crate::{
     int::ImpSize,
     lexer::token::TokensRef,
-    parser::{cmd::{cmd, Cmd}, expr::Expr},
+    parser::{
+        cmd::{cmd, Cmd},
+        expr::Expr,
+    },
     var::Var,
 };
 
@@ -61,7 +64,10 @@ impl<V, T> Tree for Ast<V, T> {
 
 impl<V, T> Ast<V, T> {
     /// Returns the variables mentioned in `self`.
-    pub fn names(&self) -> HashSet<&V> where V: Eq + Hash {
+    pub fn names(&self) -> HashSet<&V>
+    where
+        V: Eq + Hash,
+    {
         self.root.names()
     }
 }
