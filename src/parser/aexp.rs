@@ -43,18 +43,20 @@ use std::{
     ops::{Add, Mul, Sub},
 };
 
-use nom::{
-    branch::alt, bytes::complete::tag, combinator::fail, sequence::delimited, IResult, Parser,
-};
+use nom::{branch::alt, combinator::fail, sequence::delimited, IResult, Parser};
 use num_traits::Unsigned;
 
 use crate::{
     ast::tree::{NodeCount, Tree},
     int::ImpSize,
-    lexer::token::{Token, TokensRef},
+    lexer::token::Token,
 };
 
-use super::{expr::Expr, util::binary_expr};
+use super::{
+    expr::Expr,
+    util::{binary_expr, token},
+    ParserInput,
+};
 
 /// An arithmetic expression.
 ///
@@ -212,15 +214,16 @@ impl<V, T> Aexp<V, T> {
 }
 
 /// The return type of parsers in the [`crate::parser::aexp`] module.
-pub type AexpResult<'buf, 'src, T = usize> = IResult<TokensRef<'buf, &'src str, T>, Aexp<&'src str, T>>;
+pub type AexpResult<'buf, 'src, T = usize> =
+    IResult<ParserInput<'buf, 'src, T>, Aexp<&'src str, T>>;
 
 /// Parses a complete [`Aexp`] from `input`.
 pub fn aexp<'buf, 'src, T: 'buf + Clone + Eq>(
-    input: TokensRef<'buf, &'src str, T>,
+    input: ParserInput<'buf, 'src, T>,
 ) -> AexpResult<'buf, 'src, T> {
     alt((
-        binary_expr(factor, Token::Minus, aexp, Aexp::sub),
-        binary_expr(factor, Token::Plus, aexp, Aexp::add),
+        binary_expr(factor, token(&Token::Minus), aexp, Aexp::sub),
+        binary_expr(factor, token(&Token::Plus), aexp, Aexp::add),
         factor,
     ))
     .parse(input)
@@ -228,9 +231,13 @@ pub fn aexp<'buf, 'src, T: 'buf + Clone + Eq>(
 
 /// Parses a high-precedence term, i.e. either a [`term`] or an [`Aexp::Mul`].
 fn factor<'buf, 'src, T: 'buf + Clone + Eq>(
-    input: TokensRef<'buf, &'src str, T>,
+    input: ParserInput<'buf, 'src, T>,
 ) -> AexpResult<'buf, 'src, T> {
-    alt((binary_expr(term, Token::Star, term, Aexp::mul), term)).parse(input)
+    alt((
+        binary_expr(term, token(&Token::Star), term, Aexp::mul),
+        term,
+    ))
+    .parse(input)
 }
 
 /// Parses a term from `input`, where a term is considered to be one of
@@ -238,13 +245,13 @@ fn factor<'buf, 'src, T: 'buf + Clone + Eq>(
 /// - an [`Aexp::Var`];
 /// - a parenthesised expression.
 fn term<'buf, 'src, T: 'buf + Clone + Eq>(
-    input: TokensRef<'buf, &'src str, T>,
+    input: ParserInput<'buf, 'src, T>,
 ) -> AexpResult<'buf, 'src, T> {
     alt((int, var, parens)).parse(input)
 }
 
 /// Parses an [`Aexp::Int`] from `input`.
-fn int<'buf, 'src, T: Clone>(input: TokensRef<'buf, &'src str, T>) -> AexpResult<'buf, 'src, T> {
+fn int<'buf, 'src, T: Clone>(input: ParserInput<'buf, 'src, T>) -> AexpResult<'buf, 'src, T> {
     match input.split_first() {
         Some((Token::Int(int), tail)) => Ok((tail.into(), Aexp::Int(int.clone()))),
         _ => fail(input),
@@ -252,7 +259,7 @@ fn int<'buf, 'src, T: Clone>(input: TokensRef<'buf, &'src str, T>) -> AexpResult
 }
 
 /// Parses an [`Aexp::Var`] from `input`.
-fn var<'buf, 'src, T>(input: TokensRef<'buf, &'src str, T>) -> AexpResult<'buf, 'src, T> {
+fn var<'buf, 'src, T>(input: ParserInput<'buf, 'src, T>) -> AexpResult<'buf, 'src, T> {
     match input.split_first() {
         Some((Token::Var(var), tail)) => Ok((tail.into(), Aexp::Var(var))),
         _ => fail(input),
@@ -261,9 +268,9 @@ fn var<'buf, 'src, T>(input: TokensRef<'buf, &'src str, T>) -> AexpResult<'buf, 
 
 /// Parses a parenthesised [`Aexp`], with no explicit precedence handling.
 fn parens<'buf, 'src, T: 'buf + Clone + Eq>(
-    input: TokensRef<'buf, &'src str, T>,
+    input: ParserInput<'buf, 'src, T>,
 ) -> AexpResult<'buf, 'src, T> {
-    delimited(tag(Token::LeftParen), aexp, tag(Token::RightParen)).parse(input)
+    delimited(token(&Token::LeftParen), aexp, token(&Token::RightParen)).parse(input)
 }
 
 #[cfg(test)]
@@ -277,34 +284,28 @@ mod tests {
     #[test]
     fn check_int_parser() {
         let tokens = Tokens::try_from("149 * X").unwrap();
-        let (tail, x) = int(tokens.as_ref()).unwrap();
+        let (tail, x) = int(tokens.as_slice()).unwrap();
         dbg!(tail.clone(), x.clone());
 
         assert_eq!(x, Aexp::Int(149usize));
-        assert_eq!(
-            tail,
-            TokensRef::new(&vec![Token::Star, Token::Var("X")])
-        );
+        assert_eq!(tail, &vec![Token::Star, Token::Var("X")]);
 
         let tokens = Tokens::<_, usize>::try_from("X * 12").unwrap();
-        let err = int(tokens.as_ref()).expect_err("expr begins with a variable");
+        let err = int(tokens.as_slice()).expect_err("expr begins with a variable");
         dbg!(err);
     }
 
     #[test]
     fn check_var_parser() {
         let tokens = Tokens::<_, usize>::try_from("X * Y").unwrap();
-        let (tail, res) = var(TokensRef::new(&tokens)).unwrap();
+        let (tail, res) = var(tokens.as_slice()).unwrap();
         dbg!(tail.clone(), res.clone());
 
         assert_eq!(res, Aexp::var_from("X"));
-        assert_eq!(
-            tail,
-            TokensRef::new(&vec![Token::Star, Token::Var("Y")])
-        );
+        assert_eq!(tail, &vec![Token::Star, Token::Var("Y")]);
 
-        let (tail, (lhs, rhs)) = separated_pair(var, tag(Token::Star), var)
-            .parse(TokensRef::new(&tokens))
+        let (tail, (lhs, rhs)) = separated_pair(var, token(&Token::Star), var)
+            .parse(tokens.as_slice())
             .unwrap();
         dbg!(lhs.clone(), rhs.clone());
 
@@ -317,7 +318,7 @@ mod tests {
     fn check_aexp_parser() {
         // in this first case, we expect to get (* (+ X 13) 6)
         let tokens = Tokens::<_, usize>::try_from("(X+13)*6").unwrap();
-        let (tail, expr) = aexp(tokens.as_ref()).unwrap();
+        let (tail, expr) = aexp(tokens.as_slice()).unwrap();
         dbg!(tail.clone(), expr.clone());
 
         assert!(tail.is_empty());
@@ -325,7 +326,7 @@ mod tests {
 
         // in this second case with parentheses omitted, we expect to get (+ X (* 13 6))
         let tokens = Tokens::<_, usize>::try_from("X+13*6").unwrap();
-        let (tail, expr) = aexp(tokens.as_ref()).unwrap();
+        let (tail, expr) = aexp(tokens.as_slice()).unwrap();
         dbg!(tail.clone(), expr.clone());
 
         assert!(tail.is_empty());
@@ -333,7 +334,7 @@ mod tests {
 
         // in this third case, we expect to get exactly the same result as in the second case
         let tokens = Tokens::<_, usize>::try_from("X+(13*6)").unwrap();
-        let (tail, expr) = aexp(tokens.as_ref()).unwrap();
+        let (tail, expr) = aexp(tokens.as_slice()).unwrap();
         dbg!(tail.clone(), expr.clone());
 
         assert!(tail.is_empty());

@@ -1,5 +1,6 @@
 //! A compiler for the IMP programming language.
 
+// LINTS
 #![warn(missing_docs)]
 #![warn(clippy::missing_docs_in_private_items)]
 

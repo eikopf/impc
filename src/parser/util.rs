@@ -1,35 +1,22 @@
 //! Common functionality for the [`crate::parser`] submodules.
 
-use nom::{
-    bytes::complete::tag, combinator::fail, error::ParseError, sequence::separated_pair, Compare,
-    InputLength, InputTake, Parser,
-};
+use nom::{combinator::fail, error::ParseError, sequence::separated_pair, Parser};
 
 /// Returns a [`Parser`] that matches the pair `(lhs, rhs)` separated
 /// by `operator`, and then invokes `constructor` to produce a result
 /// in the successful case.
-///
-/// # Generic Parameters
-/// - `I` is the input type of the returned parser;
-/// - `L` is the return type of `lhs`;
-/// - `Op` is the type of `operator`;
-/// - `R` is the return type of `rhs`;
-/// - `O` is the return type of the returned parser;
-/// - `E` is the error type of the returned parser.
 #[inline(always)]
-pub const fn binary_expr<I, L, Op, R, O, E>(
-    lhs: impl Parser<I, L, E> + Copy,
-    operator: Op,
-    rhs: impl Parser<I, R, E> + Copy,
+pub fn binary_expr<I, L, Op, R, O, E>(
+    lhs: impl Parser<I, L, E> + Clone,
+    operator: impl Parser<I, Op, E> + Clone,
+    rhs: impl Parser<I, R, E> + Clone,
     constructor: impl FnOnce(L, R) -> O + Clone,
 ) -> impl Parser<I, O, E>
 where
-    Op: Clone + InputLength,
-    I: Compare<Op> + InputTake,
     E: ParseError<I>,
 {
     move |input| {
-        separated_pair(lhs, tag(operator.clone()), rhs)
+        separated_pair(lhs.clone(), operator.clone(), rhs.clone())
             .parse(input)
             .map(|(tail, (lhs, rhs))| (tail, constructor.clone()(lhs, rhs)))
     }
@@ -44,7 +31,7 @@ pub const fn unbox2<L, R, O>(
 }
 
 /// Returns a parser that matches on `t` when given some `[T]`.
-pub fn token<'tok, 'src, T, E>(t: &'tok T) -> impl Parser<&'src [T], &T, E>
+pub fn token<'tok, 'src, T, E>(t: &'tok T) -> impl Parser<&'src [T], &T, E> + Clone
 where
     'src: 'tok,
     T: 'src + PartialEq,
@@ -53,5 +40,23 @@ where
     move |tokens: &'src [T]| match tokens.split_first() {
         Some((head, tail)) if head == t => Ok((tail, head)),
         _ => fail(tokens),
+    }
+}
+
+pub fn tokens<'tok, 'src, T, E>(t: &'tok [T]) -> impl Parser<&'src [T], &'src [T], E> + Clone + 'tok
+where
+    'src: 'tok,
+    T: 'src + PartialEq,
+    E: ParseError<&'src [T]>,
+{
+    move |tokens: &'src [T]| {
+        if t.len() > tokens.len() {
+            fail(tokens)
+        } else {
+            match tokens.split_at(t.len()) {
+                (head, tail) if head == t => Ok((tail, head)),
+                _ => fail(tokens),
+            }
+        }
     }
 }

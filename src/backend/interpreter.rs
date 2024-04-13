@@ -187,7 +187,7 @@ mod tests {
 
         // expr: (* (- X 2) 12)
         let tokens: Tokens<_> = "(X - 2) * 12".try_into().unwrap();
-        let (_, expr): (_, Aexp<_>) = aexp(tokens.as_ref()).unwrap();
+        let (_, expr): (_, Aexp<_>) = aexp(tokens.as_slice()).unwrap();
         eprintln!("parsed expr {expr}");
         let result = (&interpreter).eval(&expr);
         eprintln!("evaluation: expr = {}", result.clone().unwrap());
@@ -195,7 +195,7 @@ mod tests {
 
         // expr: (* (- Y 2) 12)
         let tokens: Tokens<_> = "(Y - 2) * 12".try_into().unwrap();
-        let (_, expr): (_, Aexp<_>) = aexp(tokens.as_ref()).unwrap();
+        let (_, expr): (_, Aexp<_>) = aexp(tokens.as_slice()).unwrap();
         eprintln!("parsed expr {expr}");
         let result = (&interpreter).eval(&expr);
         eprintln!("evaluation: expr = {}", result.clone().unwrap());
@@ -204,7 +204,7 @@ mod tests {
         // expr: (* (- Z 2) 12)
         // Z is unbound, so this should be an error
         let tokens: Tokens<_> = "(Z - 2) * 12".try_into().unwrap();
-        let (_, expr): (_, Aexp<_>) = aexp(tokens.as_ref()).unwrap();
+        let (_, expr): (_, Aexp<_>) = aexp(tokens.as_slice()).unwrap();
         eprintln!("parsed expr {expr}");
         let result = (&interpreter).eval(&expr);
         eprintln!("encountered error: {}", result.clone().unwrap_err());
@@ -237,7 +237,7 @@ mod tests {
         "#;
 
         let tokens = Tokens::<_, ImpSize>::try_from(program).unwrap();
-        let ast = Ast::try_from(tokens.as_ref()).unwrap();
+        let ast = Ast::try_from(tokens.as_slice()).unwrap();
         eprintln!("ast:\n{}", ast.clone().root());
 
         let result = ast.map(|root| interpreter.eval(&root));

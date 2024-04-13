@@ -46,7 +46,6 @@ use std::{collections::HashSet, hash::Hash};
 
 use nom::{
     branch::alt,
-    bytes::complete::tag,
     combinator::fail,
     sequence::{delimited, separated_pair},
     IResult, Parser,
@@ -55,14 +54,15 @@ use nom::{
 use crate::{
     ast::tree::Tree,
     int::ImpSize,
-    lexer::token::{Token, TokensRef},
+    lexer::token::Token,
 };
 
 use super::{
     aexp::{aexp, Aexp},
     bexp::{bexp, Bexp},
     expr::Expr,
-    util::{binary_expr, unbox2},
+    util::{binary_expr, token, unbox2},
+    ParserInput,
 };
 
 /// An IMP command.
@@ -178,10 +178,12 @@ where
 }
 
 /// The normal return type of parsers in the [`mod@crate::parser::cmd`] module.
-pub type CmdResult<'buf, 'src, T> = IResult<TokensRef<'buf, &'src str, T>, Cmd<&'src str, T>>;
+pub type CmdResult<'buf, 'src, T> = IResult<ParserInput<'buf, 'src, T>, Cmd<&'src str, T>>;
 
 /// Parses an individual [`Cmd`] from `input`.
-pub fn cmd<'buf, 'src, T: Clone + Eq>(input: TokensRef<'buf, &'src str, T>) -> CmdResult<'buf, 'src, T> {
+pub fn cmd<'buf, 'src, T: Clone + Eq>(
+    input: ParserInput<'buf, 'src, T>,
+) -> CmdResult<'buf, 'src, T> {
     alt((seq, r#while, r#if, assign, skip)).parse(input)
 }
 
@@ -191,40 +193,43 @@ pub fn cmd<'buf, 'src, T: Clone + Eq>(input: TokensRef<'buf, &'src str, T>) -> C
 /// parser, since otherwise just using [`cmd`] results in unbounded
 /// left recursion.
 fn precedent<'buf, 'src, T: Clone + Eq>(
-    input: TokensRef<'buf, &'src str, T>,
+    input: ParserInput<'buf, 'src, T>,
 ) -> CmdResult<'buf, 'src, T> {
     alt((r#while, r#if, assign, skip)).parse(input)
 }
 
 /// Parses a [`Cmd::Seq`] from `input`.
-fn seq<'buf, 'src, T: Clone + Eq>(input: TokensRef<'buf, &'src str, T>) -> CmdResult<'buf, 'src, T> {
+fn seq<'buf, 'src, T: Clone + Eq>(input: ParserInput<'buf, 'src, T>) -> CmdResult<'buf, 'src, T> {
     // it's a bit ugly to use the binary_expr combinator here, but it saves some code repitition
-    binary_expr(precedent, Token::Semicolon, cmd, unbox2(Cmd::Seq)).parse(input)
+    binary_expr(precedent, token(&Token::Semicolon), cmd, unbox2(Cmd::Seq)).parse(input)
 }
 
 /// Parses a [`Cmd::Skip`] from `input`.
-fn skip<'buf, 'src, T>(input: TokensRef<'buf, &'src str, T>) -> CmdResult<'buf, 'src, T> {
-    match input.split_first() {
-        Some((Token::Skip, tail)) => Ok((tail.into(), Cmd::Skip)),
-        _ => fail(input),
-    }
+fn skip<'buf, 'src, T: PartialEq>(input: ParserInput<'buf, 'src, T>) -> CmdResult<'buf, 'src, T> {
+    token(&Token::Skip)
+        .parse(input)
+        .map(|(tail, _)| (tail, Cmd::Skip))
 }
 
 /// Parses a [`Cmd::Assign`] from `input`.
-fn assign<'buf, 'src, T: Clone + Eq>(input: TokensRef<'buf, &'src str, T>) -> CmdResult<'buf, 'src, T> {
-    binary_expr(var, Token::Assign, aexp, Cmd::Assign).parse(input)
+fn assign<'buf, 'src, T: Clone + Eq>(
+    input: ParserInput<'buf, 'src, T>,
+) -> CmdResult<'buf, 'src, T> {
+    binary_expr(var, token(&Token::Assign), aexp, Cmd::Assign).parse(input)
 }
 
 /// Parses a [`Cmd::If`] from `input`.
-fn r#if<'buf, 'src, T: Clone + Eq>(input: TokensRef<'buf, &'src str, T>) -> CmdResult<'buf, 'src, T> {
+fn r#if<'buf, 'src, T: Clone + Eq>(
+    input: ParserInput<'buf, 'src, T>,
+) -> CmdResult<'buf, 'src, T> {
     delimited(
-        tag(Token::If),
+        token(&Token::If),
         separated_pair(
             bexp,
-            tag(Token::Then),
-            separated_pair(cmd, tag(Token::Else), cmd),
+            token(&Token::Then),
+            separated_pair(cmd, token(&Token::Else), cmd),
         ),
-        tag(Token::Fi),
+        token(&Token::Fi),
     )
     .parse(input)
     .map(|(tail, (cond, (true_case, false_case)))| {
@@ -240,11 +245,13 @@ fn r#if<'buf, 'src, T: Clone + Eq>(input: TokensRef<'buf, &'src str, T>) -> CmdR
 }
 
 /// Parses a [`Cmd::While`] from `input`.
-fn r#while<'buf, 'src, T: Clone + Eq>(input: TokensRef<'buf, &'src str, T>) -> CmdResult<'buf, 'src, T> {
+fn r#while<'buf, 'src, T: Clone + Eq>(
+    input: ParserInput<'buf, 'src, T>,
+) -> CmdResult<'buf, 'src, T> {
     delimited(
-        tag(Token::While),
-        separated_pair(bexp, tag(Token::Do), cmd),
-        tag(Token::Od),
+        token(&Token::While),
+        separated_pair(bexp, token(&Token::Do), cmd),
+        token(&Token::Od),
     )
     .parse(input)
     .map(|(tail, (cond, inner))| (tail, Cmd::While(cond, Box::new(inner))))
@@ -252,8 +259,8 @@ fn r#while<'buf, 'src, T: Clone + Eq>(input: TokensRef<'buf, &'src str, T>) -> C
 
 /// Parses a [`Var`] from `input` by extracting from a [`Token::Var`].
 fn var<'buf, 'src, T>(
-    input: TokensRef<'buf, &'src str, T>,
-) -> IResult<TokensRef<'buf, &'src str, T>, &'src str> {
+    input: ParserInput<'buf, 'src, T>,
+) -> IResult<ParserInput<'buf, 'src, T>, &'src str> {
     match input.split_first() {
         Some((Token::Var(var), tail)) => Ok((tail.into(), var)),
         _ => fail(input),
@@ -269,7 +276,7 @@ mod tests {
     #[test]
     fn check_cmd_parser() {
         let tokens: Tokens<_, usize> = "X := 0; Y := 1; Z := 2".try_into().unwrap();
-        let (tail, program) = cmd(tokens.as_ref()).unwrap();
+        let (tail, program) = cmd(tokens.as_slice()).unwrap();
         eprintln!("{program}");
 
         assert!(tail.is_empty());
@@ -288,7 +295,7 @@ mod tests {
             "Y := 3; while X <> Y do X := Y; Y := 0; Z := X + Y od; Z := 4"
                 .try_into()
                 .unwrap();
-        let (tail, program) = cmd(tokens.as_ref()).unwrap();
+        let (tail, program) = cmd(tokens.as_slice()).unwrap();
         dbg!(tail.clone(), program.clone());
         eprintln!("{program}");
 
@@ -322,7 +329,7 @@ mod tests {
         let tokens: Tokens<_, usize> = "if X < 13 then skip; skip; skip else Y := Y - 1 fi"
             .try_into()
             .unwrap();
-        let (tail, program) = cmd(tokens.as_ref()).unwrap();
+        let (tail, program) = cmd(tokens.as_slice()).unwrap();
         dbg!(tail.clone(), program.clone());
         eprintln!("{program}");
 

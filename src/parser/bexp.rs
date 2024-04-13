@@ -34,7 +34,6 @@ use std::{
 
 use nom::{
     branch::alt,
-    bytes::complete::tag,
     combinator::fail,
     sequence::{delimited, preceded},
     IResult, Parser,
@@ -43,13 +42,13 @@ use nom::{
 use crate::{
     ast::tree::Tree,
     int::ImpSize,
-    lexer::token::{Token, TokensRef},
+    lexer::token::Token,
 };
 
 use super::{
     aexp::{aexp, Aexp},
     expr::Expr,
-    util::binary_expr,
+    util::{binary_expr, token, tokens}, ParserInput,
 };
 
 /// A boolean expression.
@@ -180,17 +179,17 @@ impl<V, T> Bexp<V, T> {
 }
 
 /// The return type of parsers in the [`crate::parser::bexp`] module.
-pub type BexpResult<'buf, 'src, T = usize> = IResult<TokensRef<'buf, &'src str, T>, Bexp<&'src str, T>>;
+pub type BexpResult<'buf, 'src, T = usize> = IResult<ParserInput<'buf, 'src, T>, Bexp<&'src str, T>>;
 
 /// Parses a [`Bexp`] from `input`.
 pub fn bexp<'buf, 'src, T: Clone + Eq>(
-    input: TokensRef<'buf, &'src str, T>,
+    input: ParserInput<'buf, 'src, T>,
 ) -> BexpResult<'buf, 'src, T> {
     alt((connective, not, proposition)).parse(input)
 }
 
 /// Parses a [`Bexp::Atom`] from `input`.
-fn atom<'buf, 'src, T: Clone>(input: TokensRef<'buf, &'src str, T>) -> BexpResult<'buf, 'src, T> {
+fn atom<'buf, 'src, T: Clone>(input: ParserInput<'buf, 'src, T>) -> BexpResult<'buf, 'src, T> {
     match input.split_first() {
         Some((Token::True, tail)) => Ok((tail.into(), Bexp::Atom(true))),
         Some((Token::False, tail)) => Ok((tail.into(), Bexp::Atom(false))),
@@ -200,37 +199,37 @@ fn atom<'buf, 'src, T: Clone>(input: TokensRef<'buf, &'src str, T>) -> BexpResul
 
 /// Parses a logical connective (either [`Bexp::And`] or [`Bexp::Or`]) from `input`.
 fn connective<'buf, 'src, T: Clone + Eq>(
-    input: TokensRef<'buf, &'src str, T>,
+    input: ParserInput<'buf, 'src, T>,
 ) -> BexpResult<'buf, 'src, T> {
     delimited(
-        tag(Token::LeftParen),
+        token(&Token::LeftParen),
         alt((
-            binary_expr(bexp, Token::Or, bexp, Bexp::bitor),
-            binary_expr(bexp, Token::And, bexp, Bexp::bitand),
+            binary_expr(bexp, token(&Token::Or), bexp, Bexp::bitor),
+            binary_expr(bexp, token(&Token::And), bexp, Bexp::bitand),
         )),
-        tag(Token::RightParen),
+        token(&Token::RightParen),
     )
     .parse(input)
 }
 
 /// Parses a [`Bexp::Not`] from `input`.
-fn not<'buf, 'src, T: Clone + Eq>(input: TokensRef<'buf, &'src str, T>) -> BexpResult<'buf, 'src, T> {
-    preceded(tag(Token::Not), bexp)
+fn not<'buf, 'src, T: Clone + Eq>(input: ParserInput<'buf, 'src, T>) -> BexpResult<'buf, 'src, T> {
+    preceded(token(&Token::Not), bexp)
         .parse(input)
         .map(|(tail, expr)| (tail, !expr))
 }
 
 /// Parses a proposition (i.e. nonrecursive variant of [`Bexp`]) from `input`.
 fn proposition<'buf, 'src, T: Clone + Eq>(
-    input: TokensRef<'buf, &'src str, T>,
+    input: ParserInput<'buf, 'src, T>,
 ) -> BexpResult<'buf, 'src, T> {
-    let not_eq_tokens = TokensRef::new(&[Token::LeftAngleBracket, Token::RightAngleBracket]);
+    let not_eq_tokens = &[Token::LeftAngleBracket, Token::RightAngleBracket];
 
     alt((
-        binary_expr(aexp, not_eq_tokens, aexp, |lhs, rhs| !Bexp::eq(lhs, rhs)),
-        binary_expr(aexp, Token::RightAngleBracket, aexp, Bexp::gt),
-        binary_expr(aexp, Token::LeftAngleBracket, aexp, Bexp::lt),
-        binary_expr(aexp, Token::Equals, aexp, Bexp::eq),
+        binary_expr(aexp, tokens(not_eq_tokens), aexp, |lhs, rhs| !Bexp::eq(lhs, rhs)),
+        binary_expr(aexp, token(&Token::RightAngleBracket), aexp, Bexp::gt),
+        binary_expr(aexp, token(&Token::LeftAngleBracket), aexp, Bexp::lt),
+        binary_expr(aexp, token(&Token::Equals), aexp, Bexp::eq),
         atom,
     ))
     .parse(input)
@@ -262,14 +261,14 @@ mod tests {
     #[test]
     fn check_proposition_parser() {
         let tokens = Tokens::<_, usize>::try_from("13 <> 12").unwrap();
-        let (tail, prop) = proposition(tokens.as_ref()).unwrap();
+        let (tail, prop) = proposition(tokens.as_slice()).unwrap();
         dbg!(tail.clone(), prop.clone());
 
         assert!(tail.is_empty());
         assert_eq!(prop, !Bexp::Eq(Aexp::Int(13), Aexp::Int(12)));
 
         let tokens = Tokens::<_, usize>::try_from("X = Y - 1").unwrap();
-        let (tail, prop) = proposition(tokens.as_ref()).unwrap();
+        let (tail, prop) = proposition(tokens.as_slice()).unwrap();
         dbg!(tail.clone(), prop.clone());
 
         assert!(tail.is_empty());
@@ -282,7 +281,7 @@ mod tests {
     #[test]
     fn check_bexp_parser() {
         let tokens = Tokens::<_, usize>::try_from("not (X = 1 or Y > Z)").unwrap();
-        let (tail, expr) = bexp(tokens.as_ref()).unwrap();
+        let (tail, expr) = bexp(tokens.as_slice()).unwrap();
         eprintln!("parsed expr: {}", expr.clone());
 
         // all tokens should have been consumed

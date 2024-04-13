@@ -6,10 +6,10 @@ use nom::Finish;
 
 use crate::{
     int::ImpSize,
-    lexer::token::TokensRef,
     parser::{
         cmd::{cmd, Cmd},
         expr::Expr,
+        ParserError, ParserInput,
     },
 };
 
@@ -24,10 +24,10 @@ pub struct Ast<V, T = ImpSize> {
     root: Cmd<V, T>,
 }
 
-impl<'buf, 'src, T: Clone + Eq> TryFrom<TokensRef<'buf, &'src str, T>> for Ast<&'src str, T> {
-    type Error = nom::error::Error<TokensRef<'buf, &'src str, T>>;
+impl<'buf, 'src, T: Clone + Eq> TryFrom<ParserInput<'buf, 'src, T>> for Ast<&'src str, T> {
+    type Error = ParserError<'buf, 'src, T>;
 
-    fn try_from(value: TokensRef<'buf, &'src str, T>) -> Result<Self, Self::Error> {
+    fn try_from(value: ParserInput<'buf, 'src, T>) -> Result<Self, Self::Error> {
         let (tail, root) = cmd(value).finish()?;
         debug_assert!(tail.is_empty());
         Ok(Self { root })
@@ -70,7 +70,7 @@ mod tests {
     #[test]
     fn test_ast_map_impl() {
         let tokens: Tokens<_, usize> = "X := 1; Y := 2; Z := 3".try_into().unwrap();
-        let ast: Ast<_, usize> = tokens.as_ref().try_into().unwrap();
+        let ast: Ast<_, usize> = tokens.as_slice().try_into().unwrap();
         dbg!(ast.clone());
         dbg!(ast.clone().names());
 
