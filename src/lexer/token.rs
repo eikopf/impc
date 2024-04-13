@@ -1,12 +1,11 @@
 //! The [`Token`] type and associated definitions.
 
 use std::{
-    iter::Enumerate,
-    ops::{Deref, Range, RangeFrom, RangeFull, RangeInclusive, RangeTo, RangeToInclusive},
+    ops::Deref,
     str::FromStr,
 };
 
-use nom::{error::VerboseError, Compare, InputIter, InputLength, InputTake, Needed, Slice};
+use nom::{error::VerboseError, InputLength};
 
 use crate::int::ImpSize;
 
@@ -92,7 +91,7 @@ impl<V, T> Deref for Tokens<V, T> {
     type Target = [Token<V, T>];
 
     fn deref(&self) -> &Self::Target {
-        self.tokens.as_ref()
+        &self.tokens
     }
 }
 
@@ -118,199 +117,8 @@ impl<V, T> Tokens<V, T> {
         }
     }
 
-    /// Returns a [`TokensRef`] pointing at the [`Token`] buffer owned by `self`.
-    pub fn as_ref<'buf>(&'buf self) -> TokensRef<'buf, V, T> {
-        self.tokens.as_ref().into()
-    }
-
     /// Returns a reference to the underlying [`Token`] buffer as a slice.
     pub fn as_slice(&self) -> &[Token<V, T>] {
         self.tokens.as_ref()
-    }
-}
-
-/// A reference to a [`Tokens`], largely used as a newtype
-/// for implementing various [`nom`] traits.
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub struct TokensRef<'buf, V, T = usize> {
-    /// A reference to the underlying buffer of a [`Tokens`].
-    tokens: &'buf [Token<V, T>],
-}
-
-impl<'buf, V, T> Deref for TokensRef<'buf, V, T> {
-    type Target = &'buf [Token<V, T>];
-
-    fn deref(&self) -> &Self::Target {
-        &self.tokens
-    }
-}
-
-impl<'buf, V, T> From<&'buf [Token<V, T>]> for TokensRef<'buf, V, T> {
-    fn from(value: &'buf [Token<V, T>]) -> Self {
-        Self { tokens: value }
-    }
-}
-
-impl<'buf, V, T> From<&'buf Tokens<V, T>> for TokensRef<'buf, V, T> {
-    fn from(value: &'buf Tokens<V, T>) -> Self {
-        value.deref().into()
-    }
-}
-
-impl<'buf, V, T: Eq> Compare<Token<V, T>> for TokensRef<'buf, V, T>
-where
-    V: PartialEq,
-{
-    fn compare(&self, t: Token<V, T>) -> nom::CompareResult {
-        match self.len() {
-            0 => nom::CompareResult::Incomplete,
-            _ if *self.first().unwrap() == t => nom::CompareResult::Ok,
-            _ => nom::CompareResult::Error,
-        }
-    }
-
-    fn compare_no_case(&self, t: Token<V, T>) -> nom::CompareResult {
-        self.compare(t)
-    }
-}
-
-// the "l" and "r" suffixes are associated with the positions of the operands
-// (left and right respectively)
-impl<'buf, V, T: Eq> Compare<TokensRef<'buf, V, T>> for TokensRef<'buf, V, T>
-where
-    V: PartialEq,
-{
-    #[inline]
-    fn compare(&self, t: TokensRef<'buf, V, T>) -> nom::CompareResult {
-        // we look for the first index where self and t differ
-        match self
-            .iter()
-            .zip(t.iter())
-            .position(|(left, right)| left != right)
-        {
-            Some(_) => nom::CompareResult::Error,
-            None if self.len() < t.len() => nom::CompareResult::Incomplete,
-            None => nom::CompareResult::Ok,
-        }
-    }
-
-    fn compare_no_case(&self, t: TokensRef<'buf, V, T>) -> nom::CompareResult {
-        // tokens have no concept of casing, so this just transparently invokes Compare::compare
-        self.compare(t)
-    }
-}
-
-impl<'buf, V, T> Slice<Range<usize>> for TokensRef<'buf, V, T> {
-    fn slice(&self, range: Range<usize>) -> Self {
-        Self::new(self.tokens.slice(range))
-    }
-}
-
-impl<'buf, V, T> Slice<RangeFrom<usize>> for TokensRef<'buf, V, T> {
-    fn slice(&self, range: RangeFrom<usize>) -> Self {
-        Self::new(self.tokens.slice(range))
-    }
-}
-
-impl<'buf, V, T> Slice<RangeTo<usize>> for TokensRef<'buf, V, T> {
-    fn slice(&self, range: RangeTo<usize>) -> Self {
-        Self::new(self.tokens.slice(range))
-    }
-}
-
-impl<'buf, V, T> Slice<RangeFull> for TokensRef<'buf, V, T> {
-    fn slice(&self, range: RangeFull) -> Self {
-        Self::new(self.tokens.slice(range))
-    }
-}
-
-impl<'buf, V, T> Slice<RangeInclusive<usize>> for TokensRef<'buf, V, T> {
-    fn slice(&self, range: RangeInclusive<usize>) -> Self {
-        self.slice(*range.start()..(range.end() + 1))
-    }
-}
-
-impl<'buf, V, T> Slice<RangeToInclusive<usize>> for TokensRef<'buf, V, T> {
-    fn slice(&self, range: RangeToInclusive<usize>) -> Self {
-        self.slice(..(range.end + 1))
-    }
-}
-
-impl<'buf, V, T> InputTake for TokensRef<'buf, V, T> {
-    fn take(&self, count: usize) -> Self {
-        Self::new(self.tokens.split_at(count).0)
-    }
-
-    fn take_split(&self, count: usize) -> (Self, Self) {
-        let (tail, head) = self.tokens.split_at(count);
-        // for presumably deranged reasons, nom expects this pair
-        // to be in the reverse order as compared to the output
-        // of std::slice::split_at. it's probably just to fit with
-        // the "(tail, head)" idiom from the rest of nom, but i
-        // still hate it
-        (Self::new(head), Self::new(tail))
-    }
-}
-
-impl<'buf, V, T> InputLength for TokensRef<'buf, V, T> {
-    fn input_len(&self) -> usize {
-        self.tokens.len()
-    }
-}
-
-impl<'buf, V, T> InputIter for TokensRef<'buf, V, T> {
-    type Item = &'buf Token<V, T>;
-
-    type Iter = Enumerate<std::slice::Iter<'buf, Token<V, T>>>;
-
-    type IterElem = std::slice::Iter<'buf, Token<V, T>>;
-
-    fn iter_indices(&self) -> Self::Iter {
-        self.tokens.iter().enumerate()
-    }
-
-    fn iter_elements(&self) -> Self::IterElem {
-        self.tokens.iter()
-    }
-
-    fn position<P>(&self, predicate: P) -> Option<usize>
-    where
-        P: Fn(Self::Item) -> bool,
-    {
-        self.tokens.iter().position(predicate)
-    }
-
-    fn slice_index(&self, count: usize) -> Result<usize, nom::Needed> {
-        match count <= self.tokens.len() {
-            true => Ok(count),
-            false => Err(Needed::Unknown),
-        }
-    }
-}
-
-impl<'buf, V, T> TokensRef<'buf, V, T> {
-    /// Constructs a new [`Tokens`] from the given [`Token`] slice.
-    pub const fn new(tokens: &'buf [Token<V, T>]) -> Self {
-        Self { tokens }
-    }
-
-    /// Returns the length of the underlying token buffer.
-    pub fn len(&self) -> usize {
-        self.tokens.len()
-    }
-
-    /// Returns `true` iff `self.len() == 0`.
-    pub fn is_empty(&self) -> bool {
-        self.tokens.is_empty()
-    }
-
-    /// Returns the first element of `self`, or `None` if it is empty.
-    pub fn first(&self) -> Option<&Token<V, T>> {
-        self.tokens.first()
-    }
-
-    /// Returns the last element of `self`, or `None` if it is empty.
-    pub fn last(&self) -> Option<&Token<V, T>> {
-        self.tokens.last()
     }
 }
