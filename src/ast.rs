@@ -3,7 +3,6 @@
 use std::{collections::HashSet, hash::Hash};
 
 use nom::Finish;
-use thiserror::Error;
 
 use crate::{
     int::ImpSize,
@@ -12,34 +11,24 @@ use crate::{
         cmd::{cmd, Cmd},
         expr::Expr,
     },
-    var::Var,
 };
 
 use self::tree::Tree;
 
 pub mod tree;
 
-/// The error type thrown when trying to parse an [`Ast`] from [`Tokens`](crate::lexer::token::Tokens).
-#[derive(Debug, Error, PartialEq, Eq, Clone, Copy)]
-pub struct AstParseError<'buf, 'src, T> {
-    /// The position in the input where this error ocurred.
-    pub location: TokensRef<'buf, 'src, T>,
-}
-
 /// An abstract syntax tree for an IMP program.
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct Ast<V = Var<'static>, T = ImpSize> {
+pub struct Ast<V, T = ImpSize> {
     /// The root of this tree.
     root: Cmd<V, T>,
 }
 
-impl<'buf, 'src, T: Clone + Eq> TryFrom<TokensRef<'buf, 'src, T>> for Ast<Var<'src>, T> {
-    type Error = AstParseError<'buf, 'src, T>;
+impl<'buf, 'src, T: Clone + Eq> TryFrom<TokensRef<'buf, &'src str, T>> for Ast<&'src str, T> {
+    type Error = nom::error::Error<TokensRef<'buf, &'src str, T>>;
 
-    fn try_from(value: TokensRef<'buf, 'src, T>) -> Result<Self, Self::Error> {
-        let (tail, root) = cmd(value).finish().map_err(|err| AstParseError {
-            location: err.input,
-        })?;
+    fn try_from(value: TokensRef<'buf, &'src str, T>) -> Result<Self, Self::Error> {
+        let (tail, root) = cmd(value).finish()?;
         debug_assert!(tail.is_empty());
         Ok(Self { root })
     }
@@ -80,12 +69,12 @@ mod tests {
 
     #[test]
     fn test_ast_map_impl() {
-        let tokens: Tokens<'_, usize> = "X := 1; Y := 2; Z := 3".try_into().unwrap();
+        let tokens: Tokens<_, usize> = "X := 1; Y := 2; Z := 3".try_into().unwrap();
         let ast: Ast<_, usize> = tokens.as_ref().try_into().unwrap();
         dbg!(ast.clone());
         dbg!(ast.clone().names());
 
-        fn count(node: Cmd<Var<'_>, usize>) -> usize {
+        fn count(node: Cmd<&str, usize>) -> usize {
             // recursive definition:
             // the number of nodes in a tree is 1 + the number of nodes in all subtrees
             1 + match node {

@@ -52,7 +52,6 @@ use crate::{
     ast::tree::{NodeCount, Tree},
     int::ImpSize,
     lexer::token::{Token, TokensRef},
-    var::Var,
 };
 
 use super::{expr::Expr, util::binary_expr};
@@ -203,21 +202,21 @@ where
 }
 
 impl<V, T> Aexp<V, T> {
-    /// Constructs an [`Aexp::Var`] by cloning `var`.
-    pub fn var_from<'src>(var: &'src str) -> Self
+    /// Constructs an [`Aexp::Var`] by invoking [`From::from`].
+    pub fn var_from<U>(var: U) -> Self
     where
-        V: From<&'src str>,
+        V: From<U>,
     {
         Self::Var(var.into())
     }
 }
 
 /// The return type of parsers in the [`crate::parser::aexp`] module.
-pub type AexpResult<'buf, 'src, T = usize> = IResult<TokensRef<'buf, 'src, T>, Aexp<Var<'src>, T>>;
+pub type AexpResult<'buf, 'src, T = usize> = IResult<TokensRef<'buf, &'src str, T>, Aexp<&'src str, T>>;
 
 /// Parses a complete [`Aexp`] from `input`.
 pub fn aexp<'buf, 'src, T: 'buf + Clone + Eq>(
-    input: TokensRef<'buf, 'src, T>,
+    input: TokensRef<'buf, &'src str, T>,
 ) -> AexpResult<'buf, 'src, T> {
     alt((
         binary_expr(factor, Token::Minus, aexp, Aexp::sub),
@@ -229,7 +228,7 @@ pub fn aexp<'buf, 'src, T: 'buf + Clone + Eq>(
 
 /// Parses a high-precedence term, i.e. either a [`term`] or an [`Aexp::Mul`].
 fn factor<'buf, 'src, T: 'buf + Clone + Eq>(
-    input: TokensRef<'buf, 'src, T>,
+    input: TokensRef<'buf, &'src str, T>,
 ) -> AexpResult<'buf, 'src, T> {
     alt((binary_expr(term, Token::Star, term, Aexp::mul), term)).parse(input)
 }
@@ -239,13 +238,13 @@ fn factor<'buf, 'src, T: 'buf + Clone + Eq>(
 /// - an [`Aexp::Var`];
 /// - a parenthesised expression.
 fn term<'buf, 'src, T: 'buf + Clone + Eq>(
-    input: TokensRef<'buf, 'src, T>,
+    input: TokensRef<'buf, &'src str, T>,
 ) -> AexpResult<'buf, 'src, T> {
     alt((int, var, parens)).parse(input)
 }
 
 /// Parses an [`Aexp::Int`] from `input`.
-fn int<'buf, 'src, T: Clone>(input: TokensRef<'buf, 'src, T>) -> AexpResult<'buf, 'src, T> {
+fn int<'buf, 'src, T: Clone>(input: TokensRef<'buf, &'src str, T>) -> AexpResult<'buf, 'src, T> {
     match input.split_first() {
         Some((Token::Int(int), tail)) => Ok((tail.into(), Aexp::Int(int.clone()))),
         _ => fail(input),
@@ -253,16 +252,16 @@ fn int<'buf, 'src, T: Clone>(input: TokensRef<'buf, 'src, T>) -> AexpResult<'buf
 }
 
 /// Parses an [`Aexp::Var`] from `input`.
-fn var<'buf, 'src, T: Clone>(input: TokensRef<'buf, 'src, T>) -> AexpResult<'buf, 'src, T> {
+fn var<'buf, 'src, T>(input: TokensRef<'buf, &'src str, T>) -> AexpResult<'buf, 'src, T> {
     match input.split_first() {
-        Some((Token::Var(var), tail)) => Ok((tail.into(), Aexp::Var(var.clone()))),
+        Some((Token::Var(var), tail)) => Ok((tail.into(), Aexp::Var(var))),
         _ => fail(input),
     }
 }
 
 /// Parses a parenthesised [`Aexp`], with no explicit precedence handling.
 fn parens<'buf, 'src, T: 'buf + Clone + Eq>(
-    input: TokensRef<'buf, 'src, T>,
+    input: TokensRef<'buf, &'src str, T>,
 ) -> AexpResult<'buf, 'src, T> {
     delimited(tag(Token::LeftParen), aexp, tag(Token::RightParen)).parse(input)
 }
@@ -284,24 +283,24 @@ mod tests {
         assert_eq!(x, Aexp::Int(149usize));
         assert_eq!(
             tail,
-            TokensRef::new(&vec![Token::Star, Token::Var(Var::from("X"))])
+            TokensRef::new(&vec![Token::Star, Token::Var("X")])
         );
 
-        let tokens = Tokens::<'_, usize>::try_from("X * 12").unwrap();
+        let tokens = Tokens::<_, usize>::try_from("X * 12").unwrap();
         let err = int(tokens.as_ref()).expect_err("expr begins with a variable");
         dbg!(err);
     }
 
     #[test]
     fn check_var_parser() {
-        let tokens = Tokens::<'_, usize>::try_from("X * Y").unwrap();
+        let tokens = Tokens::<_, usize>::try_from("X * Y").unwrap();
         let (tail, res) = var(TokensRef::new(&tokens)).unwrap();
         dbg!(tail.clone(), res.clone());
 
         assert_eq!(res, Aexp::var_from("X"));
         assert_eq!(
             tail,
-            TokensRef::new(&vec![Token::Star, Token::Var(Var::from("Y"))])
+            TokensRef::new(&vec![Token::Star, Token::Var("Y")])
         );
 
         let (tail, (lhs, rhs)) = separated_pair(var, tag(Token::Star), var)
@@ -317,7 +316,7 @@ mod tests {
     #[test]
     fn check_aexp_parser() {
         // in this first case, we expect to get (* (+ X 13) 6)
-        let tokens = Tokens::<'_, usize>::try_from("(X+13)*6").unwrap();
+        let tokens = Tokens::<_, usize>::try_from("(X+13)*6").unwrap();
         let (tail, expr) = aexp(tokens.as_ref()).unwrap();
         dbg!(tail.clone(), expr.clone());
 
@@ -325,7 +324,7 @@ mod tests {
         assert_eq!(expr, (Aexp::var_from("X") + Aexp::Int(13)) * Aexp::Int(6));
 
         // in this second case with parentheses omitted, we expect to get (+ X (* 13 6))
-        let tokens = Tokens::<'_, usize>::try_from("X+13*6").unwrap();
+        let tokens = Tokens::<_, usize>::try_from("X+13*6").unwrap();
         let (tail, expr) = aexp(tokens.as_ref()).unwrap();
         dbg!(tail.clone(), expr.clone());
 
@@ -333,7 +332,7 @@ mod tests {
         assert_eq!(expr, Aexp::var_from("X") + (Aexp::Int(13) * Aexp::Int(6)));
 
         // in this third case, we expect to get exactly the same result as in the second case
-        let tokens = Tokens::<'_, usize>::try_from("X+(13*6)").unwrap();
+        let tokens = Tokens::<_, usize>::try_from("X+(13*6)").unwrap();
         let (tail, expr) = aexp(tokens.as_ref()).unwrap();
         dbg!(tail.clone(), expr.clone());
 

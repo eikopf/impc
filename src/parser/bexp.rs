@@ -44,7 +44,6 @@ use crate::{
     ast::tree::Tree,
     int::ImpSize,
     lexer::token::{Token, TokensRef},
-    var::Var,
 };
 
 use super::{
@@ -181,17 +180,17 @@ impl<V, T> Bexp<V, T> {
 }
 
 /// The return type of parsers in the [`crate::parser::bexp`] module.
-pub type BexpResult<'buf, 'src, T = usize> = IResult<TokensRef<'buf, 'src, T>, Bexp<Var<'src>, T>>;
+pub type BexpResult<'buf, 'src, T = usize> = IResult<TokensRef<'buf, &'src str, T>, Bexp<&'src str, T>>;
 
 /// Parses a [`Bexp`] from `input`.
 pub fn bexp<'buf, 'src, T: Clone + Eq>(
-    input: TokensRef<'buf, 'src, T>,
+    input: TokensRef<'buf, &'src str, T>,
 ) -> BexpResult<'buf, 'src, T> {
     alt((connective, not, proposition)).parse(input)
 }
 
 /// Parses a [`Bexp::Atom`] from `input`.
-fn atom<'buf, 'src, T: Clone>(input: TokensRef<'buf, 'src, T>) -> BexpResult<'buf, 'src, T> {
+fn atom<'buf, 'src, T: Clone>(input: TokensRef<'buf, &'src str, T>) -> BexpResult<'buf, 'src, T> {
     match input.split_first() {
         Some((Token::True, tail)) => Ok((tail.into(), Bexp::Atom(true))),
         Some((Token::False, tail)) => Ok((tail.into(), Bexp::Atom(false))),
@@ -201,7 +200,7 @@ fn atom<'buf, 'src, T: Clone>(input: TokensRef<'buf, 'src, T>) -> BexpResult<'bu
 
 /// Parses a logical connective (either [`Bexp::And`] or [`Bexp::Or`]) from `input`.
 fn connective<'buf, 'src, T: Clone + Eq>(
-    input: TokensRef<'buf, 'src, T>,
+    input: TokensRef<'buf, &'src str, T>,
 ) -> BexpResult<'buf, 'src, T> {
     delimited(
         tag(Token::LeftParen),
@@ -215,7 +214,7 @@ fn connective<'buf, 'src, T: Clone + Eq>(
 }
 
 /// Parses a [`Bexp::Not`] from `input`.
-fn not<'buf, 'src, T: Clone + Eq>(input: TokensRef<'buf, 'src, T>) -> BexpResult<'buf, 'src, T> {
+fn not<'buf, 'src, T: Clone + Eq>(input: TokensRef<'buf, &'src str, T>) -> BexpResult<'buf, 'src, T> {
     preceded(tag(Token::Not), bexp)
         .parse(input)
         .map(|(tail, expr)| (tail, !expr))
@@ -223,7 +222,7 @@ fn not<'buf, 'src, T: Clone + Eq>(input: TokensRef<'buf, 'src, T>) -> BexpResult
 
 /// Parses a proposition (i.e. nonrecursive variant of [`Bexp`]) from `input`.
 fn proposition<'buf, 'src, T: Clone + Eq>(
-    input: TokensRef<'buf, 'src, T>,
+    input: TokensRef<'buf, &'src str, T>,
 ) -> BexpResult<'buf, 'src, T> {
     let not_eq_tokens = TokensRef::new(&[Token::LeftAngleBracket, Token::RightAngleBracket]);
 
@@ -245,7 +244,7 @@ mod tests {
 
     #[test]
     fn check_atom_parser() {
-        let tokens = Tokens::<'_, usize>::try_from("not (true or (false and false))").unwrap();
+        let tokens = Tokens::<_, usize>::try_from("not (true or (false and false))").unwrap();
         let parse_results = tokens
             .iter()
             .map(|token| atom(std::slice::from_ref(token).into()));
@@ -262,14 +261,14 @@ mod tests {
 
     #[test]
     fn check_proposition_parser() {
-        let tokens = Tokens::<'_, usize>::try_from("13 <> 12").unwrap();
+        let tokens = Tokens::<_, usize>::try_from("13 <> 12").unwrap();
         let (tail, prop) = proposition(tokens.as_ref()).unwrap();
         dbg!(tail.clone(), prop.clone());
 
         assert!(tail.is_empty());
         assert_eq!(prop, !Bexp::Eq(Aexp::Int(13), Aexp::Int(12)));
 
-        let tokens = Tokens::<'_, usize>::try_from("X = Y - 1").unwrap();
+        let tokens = Tokens::<_, usize>::try_from("X = Y - 1").unwrap();
         let (tail, prop) = proposition(tokens.as_ref()).unwrap();
         dbg!(tail.clone(), prop.clone());
 
@@ -282,7 +281,7 @@ mod tests {
 
     #[test]
     fn check_bexp_parser() {
-        let tokens = Tokens::<'_, usize>::try_from("not (X = 1 or Y > Z)").unwrap();
+        let tokens = Tokens::<_, usize>::try_from("not (X = 1 or Y > Z)").unwrap();
         let (tail, expr) = bexp(tokens.as_ref()).unwrap();
         eprintln!("parsed expr: {}", expr.clone());
 
