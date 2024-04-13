@@ -1,8 +1,8 @@
 //! Common functionality for the [`crate::parser`] submodules.
 
 use nom::{
-    bytes::complete::tag, error::ParseError, sequence::separated_pair, Compare, InputLength,
-    InputTake, Parser,
+    bytes::complete::tag, combinator::fail, error::ParseError, sequence::separated_pair, Compare,
+    InputLength, InputTake, Parser,
 };
 
 /// Returns a [`Parser`] that matches the pair `(lhs, rhs)` separated
@@ -41,4 +41,17 @@ pub const fn unbox2<L, R, O>(
     f: impl FnOnce(Box<L>, Box<R>) -> O + Clone,
 ) -> impl FnOnce(L, R) -> O + Clone {
     move |left, right| f.clone()(Box::new(left), Box::new(right))
+}
+
+/// Returns a parser that matches on `t` when given some `[T]`.
+pub fn token<'tok, 'src, T, E>(t: &'tok T) -> impl Parser<&'src [T], &T, E>
+where
+    'src: 'tok,
+    T: 'src + PartialEq,
+    E: ParseError<&'src [T]>,
+{
+    move |tokens: &'src [T]| match tokens.split_first() {
+        Some((head, tail)) if head == t => Ok((tail, head)),
+        _ => fail(tokens),
+    }
 }
