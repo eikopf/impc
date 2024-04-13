@@ -253,7 +253,7 @@ fn term<'buf, 'src, T: 'buf + Clone + Eq>(
 /// Parses an [`Aexp::Int`] from `input`.
 fn int<'buf, 'src, T: Clone>(input: ParserInput<'buf, 'src, T>) -> AexpResult<'buf, 'src, T> {
     match input.split_first() {
-        Some((Token::Int(int), tail)) => Ok((tail.into(), Aexp::Int(int.clone()))),
+        Some((Token::Int(int), tail)) => Ok((tail, Aexp::Int(int.clone()))),
         _ => fail(input),
     }
 }
@@ -261,7 +261,7 @@ fn int<'buf, 'src, T: Clone>(input: ParserInput<'buf, 'src, T>) -> AexpResult<'b
 /// Parses an [`Aexp::Var`] from `input`.
 fn var<'buf, 'src, T>(input: ParserInput<'buf, 'src, T>) -> AexpResult<'buf, 'src, T> {
     match input.split_first() {
-        Some((Token::Var(var), tail)) => Ok((tail.into(), Aexp::Var(var))),
+        Some((Token::Var(var), tail)) => Ok((tail, Aexp::Var(var))),
         _ => fail(input),
     }
 }
@@ -285,7 +285,7 @@ mod tests {
     fn check_int_parser() {
         let tokens = Tokens::try_from("149 * X").unwrap();
         let (tail, x) = int(tokens.as_slice()).unwrap();
-        dbg!(tail.clone(), x.clone());
+        dbg!(tail, x.clone());
 
         assert_eq!(x, Aexp::Int(149usize));
         assert_eq!(tail, &vec![Token::Star, Token::Var("X")]);
@@ -299,7 +299,7 @@ mod tests {
     fn check_var_parser() {
         let tokens = Tokens::<_, usize>::try_from("X * Y").unwrap();
         let (tail, res) = var(tokens.as_slice()).unwrap();
-        dbg!(tail.clone(), res.clone());
+        dbg!(tail, res.clone());
 
         assert_eq!(res, Aexp::var_from("X"));
         assert_eq!(tail, &vec![Token::Star, Token::Var("Y")]);
@@ -319,7 +319,7 @@ mod tests {
         // in this first case, we expect to get (* (+ X 13) 6)
         let tokens = Tokens::<_, usize>::try_from("(X+13)*6").unwrap();
         let (tail, expr) = aexp(tokens.as_slice()).unwrap();
-        dbg!(tail.clone(), expr.clone());
+        dbg!(tail, expr.clone());
 
         assert!(tail.is_empty());
         assert_eq!(expr, (Aexp::var_from("X") + Aexp::Int(13)) * Aexp::Int(6));
@@ -327,7 +327,7 @@ mod tests {
         // in this second case with parentheses omitted, we expect to get (+ X (* 13 6))
         let tokens = Tokens::<_, usize>::try_from("X+13*6").unwrap();
         let (tail, expr) = aexp(tokens.as_slice()).unwrap();
-        dbg!(tail.clone(), expr.clone());
+        dbg!(tail, expr.clone());
 
         assert!(tail.is_empty());
         assert_eq!(expr, Aexp::var_from("X") + (Aexp::Int(13) * Aexp::Int(6)));
@@ -335,7 +335,7 @@ mod tests {
         // in this third case, we expect to get exactly the same result as in the second case
         let tokens = Tokens::<_, usize>::try_from("X+(13*6)").unwrap();
         let (tail, expr) = aexp(tokens.as_slice()).unwrap();
-        dbg!(tail.clone(), expr.clone());
+        dbg!(tail, expr.clone());
 
         assert!(tail.is_empty());
         assert_eq!(expr, Aexp::var_from("X") + (Aexp::Int(13) * Aexp::Int(6)));

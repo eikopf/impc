@@ -191,8 +191,8 @@ pub fn bexp<'buf, 'src, T: Clone + Eq>(
 /// Parses a [`Bexp::Atom`] from `input`.
 fn atom<'buf, 'src, T: Clone>(input: ParserInput<'buf, 'src, T>) -> BexpResult<'buf, 'src, T> {
     match input.split_first() {
-        Some((Token::True, tail)) => Ok((tail.into(), Bexp::Atom(true))),
-        Some((Token::False, tail)) => Ok((tail.into(), Bexp::Atom(false))),
+        Some((Token::True, tail)) => Ok((tail, Bexp::Atom(true))),
+        Some((Token::False, tail)) => Ok((tail, Bexp::Atom(false))),
         _ => fail(input),
     }
 }
@@ -262,14 +262,14 @@ mod tests {
     fn check_proposition_parser() {
         let tokens = Tokens::<_, usize>::try_from("13 <> 12").unwrap();
         let (tail, prop) = proposition(tokens.as_slice()).unwrap();
-        dbg!(tail.clone(), prop.clone());
+        dbg!(tail, prop.clone());
 
         assert!(tail.is_empty());
         assert_eq!(prop, !Bexp::Eq(Aexp::Int(13), Aexp::Int(12)));
 
         let tokens = Tokens::<_, usize>::try_from("X = Y - 1").unwrap();
         let (tail, prop) = proposition(tokens.as_slice()).unwrap();
-        dbg!(tail.clone(), prop.clone());
+        dbg!(tail, prop.clone());
 
         assert!(tail.is_empty());
         assert_eq!(

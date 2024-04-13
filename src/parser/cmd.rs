@@ -262,7 +262,7 @@ fn var<'buf, 'src, T>(
     input: ParserInput<'buf, 'src, T>,
 ) -> IResult<ParserInput<'buf, 'src, T>, &'src str> {
     match input.split_first() {
-        Some((Token::Var(var), tail)) => Ok((tail.into(), var)),
+        Some((Token::Var(var), tail)) => Ok((tail, var)),
         _ => fail(input),
     }
 }
@@ -296,7 +296,7 @@ mod tests {
                 .try_into()
                 .unwrap();
         let (tail, program) = cmd(tokens.as_slice()).unwrap();
-        dbg!(tail.clone(), program.clone());
+        dbg!(tail, program.clone());
         eprintln!("{program}");
 
         assert!(tail.is_empty());
@@ -330,7 +330,7 @@ mod tests {
             .try_into()
             .unwrap();
         let (tail, program) = cmd(tokens.as_slice()).unwrap();
-        dbg!(tail.clone(), program.clone());
+        dbg!(tail, program.clone());
         eprintln!("{program}");
 
         assert!(tail.is_empty());

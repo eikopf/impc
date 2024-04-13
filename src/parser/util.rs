@@ -43,6 +43,7 @@ where
     }
 }
 
+/// Returns a parsers that matches on the sequence `t` when given some `[T]`.
 pub fn tokens<'tok, 'src, T, E>(t: &'tok [T]) -> impl Parser<&'src [T], &'src [T], E> + Clone + 'tok
 where
     'src: 'tok,
