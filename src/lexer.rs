@@ -5,7 +5,10 @@ use std::str::FromStr;
 use nom::{
     branch::alt,
     bytes::complete::take_while1,
-    character::{complete::{digit1, multispace0}, is_alphanumeric},
+    character::{
+        complete::{digit1, multispace0},
+        is_alphanumeric,
+    },
     combinator::{all_consuming, map_res, verify},
     error::VerboseError,
     multi::many0,
@@ -15,17 +18,19 @@ use nom::{
 
 use token::Token;
 
-use crate::var::Var;
+use self::token::TokenRef;
 
 pub mod symbol;
 pub mod token;
 
+/// The general error type produced by [`crate::lexer`] parsers.
+pub type LexError<E> = VerboseError<E>;
 /// The general return type for [`crate::lexer`] parsers.
-pub type LexResult<'src, T> = IResult<&'src str, Token<'src, T>, VerboseError<&'src str>>;
+pub type LexResult<'src, T> = IResult<&'src str, TokenRef<'src, T>, LexError<&'src str>>;
 
 /// Attempts to parse the entirety of `input` into a `Vec<Token<'_, T>>`,
 /// either returning it completely or producing a [`VerboseError`].
-pub fn parse_tokens<T: FromStr>(input: &str) -> Result<Vec<Token<'_, T>>, VerboseError<&str>> {
+pub fn parse_tokens<T: FromStr>(input: &str) -> Result<Vec<TokenRef<'_, T>>, VerboseError<&str>> {
     all_consuming(many0(delimited(
         multispace0,
         alt((symbol::glyph, symbol::keyword, int, var)),
@@ -47,7 +52,7 @@ pub fn var<T>(input: &str) -> LexResult<'_, T> {
         |s: &str| !s.starts_with('_'),
     )
     .parse(input)
-    .map(|(tail, name)| (tail, Token::Var(Var::from(name))))
+    .map(|(tail, name)| (tail, Token::Var(name)))
 }
 
 /// Parses a [`Token::Int`] from `input`.
@@ -66,7 +71,7 @@ mod tests {
     #[test]
     fn var_parser_is_correct() {
         assert!(var::<usize>("Var_name trailing")
-            .is_ok_and(|res| res == (" trailing", Token::Var(Var::from("Var_name")))));
+            .is_ok_and(|res| res == (" trailing", Token::Var(&"Var_name"))));
 
         assert!(var::<usize>("_illegal_name").is_err());
 
