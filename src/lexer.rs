@@ -28,6 +28,17 @@ pub type LexError<E> = VerboseError<E>;
 /// The general return type for [`crate::lexer`] parsers.
 pub type LexResult<'src, T> = IResult<&'src str, TokenRef<'src, T>, LexError<&'src str>>;
 
+/// Converts a `LexError<&str>` into a `LexError<String>` using [`String::from`].
+pub fn owned_lex_error(error: LexError<&str>) -> LexError<String> {
+    VerboseError {
+        errors: error
+            .errors
+            .into_iter()
+            .map(|(s, kind)| (String::from(s), kind))
+            .collect(),
+    }
+}
+
 /// Attempts to parse the entirety of `input` into a `Vec<Token<'_, T>>`,
 /// either returning it completely or producing a [`VerboseError`].
 pub fn parse_tokens<T: FromStr>(input: &str) -> Result<Vec<TokenRef<'_, T>>, VerboseError<&str>> {

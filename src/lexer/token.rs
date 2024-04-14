@@ -117,12 +117,9 @@ impl<T: FromStr> FromStr for Tokens<String, T> {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match parse_tokens::<T>(s) {
             Ok(tokens) => Ok(Self {
-                tokens: tokens
-                    .into_iter()
-                    .map(Into::into)
-                    .collect::<Box<[_]>>(),
+                tokens: tokens.into_iter().map(Into::into).collect::<Box<[_]>>(),
             }),
-            Err(_) => todo!(),
+            Err(err) => Err(super::owned_lex_error(err)),
         }
     }
 }
