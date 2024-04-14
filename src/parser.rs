@@ -28,8 +28,6 @@ pub type ParserError<'buf, 'src, T> = Error<ParserInput<'buf, 'src, T>>;
 
 /// Converts a `ParserError<'buf, 'src, T>` to an [`Error`] which
 /// owns a [`Tokens`] by invoking the appropriate [`Into`] impl.
-pub fn owned_parser_error<'buf, 'src, T: Clone>(
-    error: ParserError<'buf, 'src, T>,
-) -> Error<Tokens<String, T>> {
+pub fn owned_parser_error<T: Clone>(error: ParserError<'_, '_, T>) -> Error<Tokens<String, T>> {
     Error::new(error.input.into(), error.code)
 }

@@ -1,6 +1,6 @@
 //! The [`Token`] type and associated definitions.
 
-use std::{ops::Deref, str::FromStr};
+use std::{fmt::Write, ops::Deref, str::FromStr};
 
 use nom::{error::VerboseError, InputLength};
 
@@ -77,7 +77,7 @@ impl<T> From<Token<&str, T>> for Token<String, T> {
     fn from(value: Token<&str, T>) -> Self {
         match value {
             Token::Var(var) => Token::Var(var.to_string()),
-            other => todo!(),
+            other => other.into(),
         }
     }
 }
@@ -98,10 +98,10 @@ where
         write!(
             f,
             "{}",
-            self.tokens
-                .into_iter()
-                .map(|token| format!(
-                    "{}\n",
+            self.tokens.iter().fold(String::new(), |mut buf, token| {
+                let _ = writeln!(
+                    buf,
+                    "{}",
                     match token {
                         Token::Var(var) => format!("{var}"),
                         Token::Int(int) => format!("{int}"),
@@ -132,8 +132,10 @@ where
                             _ => unreachable!("var and int variants have already been caught"),
                         }),
                     }
-                ))
-                .collect::<String>()
+                );
+
+                buf
+            })
         )
     }
 }
@@ -150,7 +152,7 @@ impl<'buf, 'src, T: Clone> From<&'buf [Token<&'src str, T>]> for Tokens<String, 
     fn from(value: &'buf [Token<&'src str, T>]) -> Self {
         Self {
             tokens: value
-                .into_iter()
+                .iter()
                 .map(|token| match token {
                     Token::Var(var) => Token::Var(String::from(*var)),
                     other => other.clone().into(),
@@ -195,7 +197,7 @@ impl<V, T> Tokens<V, T> {
     }
 
     /// Returns a reference to the underlying [`Token`] buffer as a slice.
-    pub fn as_slice<'buf>(&'buf self) -> &'buf [Token<V, T>] {
+    pub fn as_slice(&self) -> &[Token<V, T>] {
         self.tokens.as_ref()
     }
 }

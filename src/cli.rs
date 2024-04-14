@@ -46,7 +46,7 @@ impl Cli {
                     let interpreter: Interpreter<String, ImpSize> = match args.bindings {
                         Some(bindings) => Interpreter::from(bindings.map),
                         None => {
-                            let mut names: Vec<_> = ast.names().into_iter().map(Clone::clone).collect();
+                            let mut names: Vec<_> = ast.names().into_iter().cloned().collect();
                             names.sort_unstable();
 
                             let mut bindings = HashMap::<String, ImpSize>::new();
