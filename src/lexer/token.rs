@@ -77,7 +77,7 @@ impl<T> From<Token<&str, T>> for Token<String, T> {
     fn from(value: Token<&str, T>) -> Self {
         match value {
             Token::Var(var) => Token::Var(var.to_string()),
-            other => other.into(),
+            other => todo!(),
         }
     }
 }

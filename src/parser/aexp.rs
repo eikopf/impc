@@ -43,6 +43,7 @@ use std::{
     ops::{Add, Mul, Sub},
 };
 
+use higher::Bifunctor;
 use nom::{branch::alt, combinator::fail, sequence::delimited, IResult, Parser};
 use num_traits::Unsigned;
 
@@ -214,16 +215,14 @@ impl<V, T> Aexp<V, T> {
 
     /// Maps `op` over the variable nodes of `self`, leaving all
     /// other nodes unchanged.
-    pub fn map_vars<F, U>(self, op: F) -> Aexp<U, T>
-    where
-        F: Fn(V) -> U,
+    pub fn map_vars<U>(self, op: fn(V) -> U) -> Aexp<U, T>
     {
         match self {
             Aexp::Int(int) => Aexp::Int(int),
             Aexp::Var(var) => Aexp::Var(op(var)),
-            Aexp::Add(lhs, rhs) => lhs.map_vars(&op) + rhs.map_vars(&op),
-            Aexp::Mul(lhs, rhs) => lhs.map_vars(&op) * rhs.map_vars(&op),
-            Aexp::Sub(lhs, rhs) => lhs.map_vars(&op) - rhs.map_vars(&op),
+            Aexp::Add(lhs, rhs) => lhs.map_vars(op) + rhs.map_vars(op),
+            Aexp::Mul(lhs, rhs) => lhs.map_vars(op) * rhs.map_vars(op),
+            Aexp::Sub(lhs, rhs) => lhs.map_vars(op) - rhs.map_vars(op),
         }
     }
 }

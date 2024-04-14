@@ -66,8 +66,6 @@ where
             .map(|(_tail, cmd)| cmd)
             .map_err(|err| AstFromStringError::Parser(owned_parser_error(err)))?;
 
-        // NOTE: this causes a weird compiler bug where it tries to endlessly fulfil a trait bound
-        // by stacking references (until it hits the recursion limit at 129 ampersands).
         Ok(Ast {
             root: root.map_vars(String::from),
         })

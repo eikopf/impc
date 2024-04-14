@@ -175,27 +175,24 @@ where
 
 impl<V, T> Cmd<V, T> {
     /// Maps `op` over the variable nodes of `self`, leaving all other nodes unchanged.
-    pub fn map_vars<F, U>(self, op: F) -> Cmd<U, T>
-    where
-        F: Fn(V) -> U,
-    {
+    pub fn map_vars<U>(self, op: fn(V) -> U) -> Cmd<U, T> {
         match self {
             Cmd::Skip => Cmd::Skip,
-            Cmd::Assign(var, rhs) => Cmd::Assign(op(var), rhs.map_vars(&op)),
+            Cmd::Assign(var, rhs) => Cmd::Assign(op(var), rhs.map_vars(op)),
             Cmd::Seq(first, second) => Cmd::Seq(
-                Box::new(first.map_vars(&op)),
-                Box::new(second.map_vars(&op)),
+                Box::new(first.map_vars(op)),
+                Box::new(second.map_vars(op)),
             ),
             Cmd::If {
                 cond,
                 true_case,
                 false_case,
             } => Cmd::If {
-                cond: cond.map_vars(&op),
-                true_case: Box::new(true_case.map_vars(&op)),
-                false_case: Box::new(false_case.map_vars(&op)),
+                cond: cond.map_vars(op),
+                true_case: Box::new(true_case.map_vars(op)),
+                false_case: Box::new(false_case.map_vars(op)),
             },
-            Cmd::While(cond, body) => Cmd::While(cond.map_vars(&op), Box::new(body.map_vars(&op))),
+            Cmd::While(cond, body) => Cmd::While(cond.map_vars(op), Box::new(body.map_vars(op))),
         }
     }
 }
