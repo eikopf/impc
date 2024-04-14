@@ -9,8 +9,8 @@ use std::{
 use thiserror::Error;
 
 use crate::{
-    ast::tree::Evaluator,
     parser::{aexp::Aexp, bexp::Bexp, cmd::Cmd},
+    tree::Evaluator,
 };
 
 /// The state of an interpreter.
@@ -168,8 +168,7 @@ fn join<V, T, U>(
 
 #[cfg(test)]
 mod tests {
-    use crate::ast::tree::Tree;
-    use crate::{ast::Ast, int::ImpSize, lexer::token::Tokens, parser::aexp::aexp};
+    use crate::{ast::Ast, int::ImpSize, lexer::token::Tokens, parser::aexp::aexp, tree::Tree};
 
     use super::*;
 
@@ -208,10 +207,7 @@ mod tests {
         eprintln!("parsed expr {expr}");
         let result = (&interpreter).eval(&expr);
         eprintln!("encountered error: {}", result.clone().unwrap_err());
-        assert_eq!(
-            result.unwrap_err(),
-            VariableBindingError(vec!["Z"])
-        );
+        assert_eq!(result.unwrap_err(), VariableBindingError(vec!["Z"]));
     }
 
     #[test]

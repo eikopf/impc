@@ -52,7 +52,7 @@ use nom::{
 };
 
 use crate::{
-    ast::tree::Tree,
+    tree::Tree,
     int::ImpSize,
     lexer::token::Token,
 };

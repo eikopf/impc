@@ -47,7 +47,7 @@ use nom::{branch::alt, combinator::fail, sequence::delimited, IResult, Parser};
 use num_traits::Unsigned;
 
 use crate::{
-    ast::tree::{NodeCount, Tree},
+    tree::{NodeCount, Tree},
     int::ImpSize,
     lexer::token::Token,
 };

@@ -10,12 +10,8 @@ use crate::{
         cmd::{cmd, Cmd},
         expr::Expr,
         ParserError, ParserInput,
-    },
+    }, tree::Tree,
 };
-
-use self::tree::Tree;
-
-pub mod tree;
 
 /// An abstract syntax tree for an IMP program.
 #[derive(Debug, PartialEq, Eq, Clone)]
