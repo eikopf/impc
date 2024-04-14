@@ -40,7 +40,7 @@ pub fn owned_lex_error(error: LexError<&str>) -> LexError<String> {
 }
 
 /// Attempts to parse the entirety of `input` into a `Vec<Token<'_, T>>`,
-/// either returning it completely or producing a [`VerboseError`].
+/// either processing it completely or producing a [`VerboseError`].
 pub fn parse_tokens<T: FromStr>(input: &str) -> Result<Vec<TokenRef<'_, T>>, VerboseError<&str>> {
     all_consuming(many0(delimited(
         multispace0,
@@ -77,6 +77,8 @@ pub fn int<T: FromStr>(input: &str) -> LexResult<'_, T> {
 mod tests {
     use nom::error::convert_error;
 
+    use crate::int::ImpSize;
+
     use super::*;
 
     #[test]
@@ -86,10 +88,10 @@ mod tests {
 
         assert!(var::<usize>("_illegal_name").is_err());
 
-        assert!(var::<usize>("X").is_ok());
+        assert!(var::<ImpSize>("X").is_ok());
         assert!(var::<usize>("X := ").is_ok());
-        assert!(var::<usize>("X := 13").is_ok());
-        assert!(var::<usize>("X := 13;").is_ok());
+        assert!(var::<u32>("X := 13").is_ok());
+        assert!(var::<u128>("X := 13;").is_ok());
     }
 
     #[test]
