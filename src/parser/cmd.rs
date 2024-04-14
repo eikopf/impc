@@ -51,11 +51,7 @@ use nom::{
     IResult, Parser,
 };
 
-use crate::{
-    tree::Tree,
-    int::ImpSize,
-    lexer::token::Token,
-};
+use crate::{int::ImpSize, lexer::token::Token, tree::Tree};
 
 use super::{
     aexp::{aexp, Aexp},
@@ -177,6 +173,33 @@ where
     }
 }
 
+impl<V, T> Cmd<V, T> {
+    /// Maps `op` over the variable nodes of `self`, leaving all other nodes unchanged.
+    pub fn map_vars<F, U>(self, op: F) -> Cmd<U, T>
+    where
+        F: Fn(V) -> U,
+    {
+        match self {
+            Cmd::Skip => Cmd::Skip,
+            Cmd::Assign(var, rhs) => Cmd::Assign(op(var), rhs.map_vars(&op)),
+            Cmd::Seq(first, second) => Cmd::Seq(
+                Box::new(first.map_vars(&op)),
+                Box::new(second.map_vars(&op)),
+            ),
+            Cmd::If {
+                cond,
+                true_case,
+                false_case,
+            } => Cmd::If {
+                cond: cond.map_vars(&op),
+                true_case: Box::new(true_case.map_vars(&op)),
+                false_case: Box::new(false_case.map_vars(&op)),
+            },
+            Cmd::While(cond, body) => Cmd::While(cond.map_vars(&op), Box::new(body.map_vars(&op))),
+        }
+    }
+}
+
 /// The normal return type of parsers in the [`mod@crate::parser::cmd`] module.
 pub type CmdResult<'buf, 'src, T> = IResult<ParserInput<'buf, 'src, T>, Cmd<&'src str, T>>;
 
@@ -219,9 +242,7 @@ fn assign<'buf, 'src, T: Clone + Eq>(
 }
 
 /// Parses a [`Cmd::If`] from `input`.
-fn r#if<'buf, 'src, T: Clone + Eq>(
-    input: ParserInput<'buf, 'src, T>,
-) -> CmdResult<'buf, 'src, T> {
+fn r#if<'buf, 'src, T: Clone + Eq>(input: ParserInput<'buf, 'src, T>) -> CmdResult<'buf, 'src, T> {
     delimited(
         token(&Token::If),
         separated_pair(

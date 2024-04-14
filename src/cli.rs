@@ -7,7 +7,7 @@
 #![allow(clippy::missing_docs_in_private_items)]
 #![allow(dead_code)]
 
-use std::{collections::HashMap, ffi::OsString, str::FromStr};
+use std::{collections::HashMap, ffi::OsString, io::Write, str::FromStr};
 
 use argh::FromArgs;
 use nom::{
@@ -20,6 +20,12 @@ use nom::{
     Finish, Parser,
 };
 
+use crate::{
+    ast::Ast,
+    backend::interpreter::Interpreter,
+    int::ImpSize, tree::{Evaluator, Tree},
+};
+
 /// A compiler for the IMP programming language.
 #[derive(Debug, Clone, FromArgs)]
 pub struct Cli {
@@ -30,7 +36,41 @@ pub struct Cli {
 impl Cli {
     /// Consumes `self` and processes the given subcommand.
     pub fn handle(self) -> anyhow::Result<()> {
-        todo!();
+        match self.cmd {
+            CliSubCommand::Run(args) => match &args.backend {
+                Backend::ByteCode => todo!(),
+                Backend::Interpreter => {
+                    let source = std::fs::read_to_string(args.file)?;
+                    let ast: Ast<String, ImpSize> = Ast::from_str(&source)?;
+
+                    let interpreter: Interpreter<String, ImpSize> = match args.bindings {
+                        Some(bindings) => Interpreter::from(bindings.map),
+                        None => {
+                            let mut names: Vec<_> = ast.names().into_iter().map(Clone::clone).collect();
+                            names.sort_unstable();
+
+                            let mut bindings = HashMap::<String, ImpSize>::new();
+
+                            for name in names {
+                                print!("Provide a binding for {name}: ");
+                                let _ = std::io::stdout().flush();
+                                let mut buf = String::new();
+                                let _ = std::io::stdin()
+                                    .read_line(&mut buf)
+                                    .expect("received valid UTF-8");
+                                bindings.insert(name, buf.parse()?);
+                            }
+
+                            Interpreter::from(bindings)
+                        }
+                    };
+
+                    let result = interpreter.eval(&ast.root())?;
+                    println!("{:?}", result);
+                    Ok(())
+                }
+            },
+        }
     }
 }
 
@@ -90,7 +130,7 @@ impl FromStr for Backend {
 #[derive(Debug, Clone)]
 struct Bindings {
     /// The actual key-value pairs, mapping names to their bound values.
-    map: HashMap<String, usize>,
+    map: HashMap<String, ImpSize>,
 }
 
 impl FromStr for Bindings {
@@ -114,7 +154,7 @@ impl FromStr for Bindings {
                             "parse digits into pointer-sized unsigned integer",
                             map_res(
                                 context("expected a digit sequence", digit1),
-                                <usize>::from_str,
+                                ImpSize::from_str,
                             ),
                         )),
                     )),
@@ -128,7 +168,7 @@ impl FromStr for Bindings {
             map: pairs
                 .into_iter()
                 .map(|(name, value)| (String::from(name), value))
-                .collect::<HashMap<String, usize>>(),
+                .collect::<HashMap<String, ImpSize>>(),
         })
         .map_err(|err: VerboseError<&str>| {
             let trace = nom::error::convert_error(s, err);
@@ -145,8 +185,8 @@ mod tests {
     fn check_bindings_parser() {
         let input = "{ X: 2,    \t\nY :3, \t\n\r Z   :\n 0  \t}";
         let bindings = Bindings::from_str(input).unwrap();
-        assert_eq!(bindings.map.get("X"), Some(&2));
-        assert_eq!(bindings.map.get("Y"), Some(&3));
-        assert_eq!(bindings.map.get("Z"), Some(&0));
+        assert_eq!(bindings.map.get("X"), Some(&2.into()));
+        assert_eq!(bindings.map.get("Y"), Some(&3.into()));
+        assert_eq!(bindings.map.get("Z"), Some(&0.into()));
     }
 }

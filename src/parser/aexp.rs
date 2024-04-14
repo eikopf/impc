@@ -47,9 +47,9 @@ use nom::{branch::alt, combinator::fail, sequence::delimited, IResult, Parser};
 use num_traits::Unsigned;
 
 use crate::{
-    tree::{NodeCount, Tree},
     int::ImpSize,
     lexer::token::Token,
+    tree::{NodeCount, Tree},
 };
 
 use super::{
@@ -210,6 +210,21 @@ impl<V, T> Aexp<V, T> {
         V: From<U>,
     {
         Self::Var(var.into())
+    }
+
+    /// Maps `op` over the variable nodes of `self`, leaving all
+    /// other nodes unchanged.
+    pub fn map_vars<F, U>(self, op: F) -> Aexp<U, T>
+    where
+        F: Fn(V) -> U,
+    {
+        match self {
+            Aexp::Int(int) => Aexp::Int(int),
+            Aexp::Var(var) => Aexp::Var(op(var)),
+            Aexp::Add(lhs, rhs) => lhs.map_vars(&op) + rhs.map_vars(&op),
+            Aexp::Mul(lhs, rhs) => lhs.map_vars(&op) * rhs.map_vars(&op),
+            Aexp::Sub(lhs, rhs) => lhs.map_vars(&op) - rhs.map_vars(&op),
+        }
     }
 }
 

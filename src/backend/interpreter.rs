@@ -185,7 +185,7 @@ mod tests {
         };
 
         // expr: (* (- X 2) 12)
-        let tokens: Tokens<_> = "(X - 2) * 12".try_into().unwrap();
+        let tokens: Tokens<_, ImpSize> = "(X - 2) * 12".try_into().unwrap();
         let (_, expr): (_, Aexp<_>) = aexp(tokens.as_slice()).unwrap();
         eprintln!("parsed expr {expr}");
         let result = (&interpreter).eval(&expr);
@@ -193,7 +193,7 @@ mod tests {
         assert_eq!(result.unwrap(), ImpSize::from(24));
 
         // expr: (* (- Y 2) 12)
-        let tokens: Tokens<_> = "(Y - 2) * 12".try_into().unwrap();
+        let tokens: Tokens<_, ImpSize> = "(Y - 2) * 12".try_into().unwrap();
         let (_, expr): (_, Aexp<_>) = aexp(tokens.as_slice()).unwrap();
         eprintln!("parsed expr {expr}");
         let result = (&interpreter).eval(&expr);
@@ -202,7 +202,7 @@ mod tests {
 
         // expr: (* (- Z 2) 12)
         // Z is unbound, so this should be an error
-        let tokens: Tokens<_> = "(Z - 2) * 12".try_into().unwrap();
+        let tokens: Tokens<_, ImpSize> = "(Z - 2) * 12".try_into().unwrap();
         let (_, expr): (_, Aexp<_>) = aexp(tokens.as_slice()).unwrap();
         eprintln!("parsed expr {expr}");
         let result = (&interpreter).eval(&expr);
