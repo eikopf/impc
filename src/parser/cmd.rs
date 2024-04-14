@@ -257,7 +257,7 @@ fn r#while<'buf, 'src, T: Clone + Eq>(
     .map(|(tail, (cond, inner))| (tail, Cmd::While(cond, Box::new(inner))))
 }
 
-/// Parses a [`Var`] from `input` by extracting from a [`Token::Var`].
+/// Parses a variable from `input` by extracting from a [`Token::Var`].
 fn var<'buf, 'src, T>(
     input: ParserInput<'buf, 'src, T>,
 ) -> IResult<ParserInput<'buf, 'src, T>, &'src str> {

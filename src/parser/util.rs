@@ -1,4 +1,13 @@
 //! Common functionality for the [`crate::parser`] submodules.
+//!
+//! # Relationship to [`nom`]
+//! Because most primitive [`nom`] parsers (e.g. [`nom::bytes::complete::tag`]) rely on the
+//! [`nom::InputTake`] trait to describe the relationship between a sequence and its elements, it
+//! is not possible to use these parsers with [`crate::lexer::token::Token`] slices. 
+//!
+//! Luckily, we only need to replace a small handful of these primitive parsers, and they can be
+//! replaced in their entirety by the [`token`] and [`tokens`] functions (which act like
+//! [`nom::bytes::complete::tag`] for individual tokens and token slices respectively).
 
 use nom::{combinator::fail, error::ParseError, sequence::separated_pair, Parser};
 
@@ -30,7 +39,7 @@ pub const fn unbox2<L, R, O>(
     move |left, right| f.clone()(Box::new(left), Box::new(right))
 }
 
-/// Returns a parser that matches on `t` when given some `[T]`.
+/// Returns a [`Parser`] that matches on `t` when given some `[T]`.
 pub fn token<'tok, 'src, T, E>(t: &'tok T) -> impl Parser<&'src [T], &T, E> + Clone
 where
     'src: 'tok,
@@ -43,7 +52,7 @@ where
     }
 }
 
-/// Returns a parsers that matches on the sequence `t` when given some `[T]`.
+/// Returns a [`Parser`] that matches on the sequence `t` when given some `[T]`.
 pub fn tokens<'tok, 'src, T, E>(t: &'tok [T]) -> impl Parser<&'src [T], &'src [T], E> + Clone + 'tok
 where
     'src: 'tok,

@@ -84,9 +84,7 @@ impl<T> From<Token<&str, T>> for Token<String, T> {
     }
 }
 
-/// A thin wrapper around an owned [`Token`] slice,
-/// from which [`TokensRef`] structs can be cheaply
-/// created and passed around.
+/// A thin wrapper around an owned [`Token`] slice.
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Tokens<V, T = ImpSize> {
     /// The underlying [`Token`] buffer.

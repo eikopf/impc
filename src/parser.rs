@@ -1,4 +1,4 @@
-//! A [`nom`]-based parser operating on sequences of tokens.
+//! A [`nom`]-based parser operating on token slices.
 //!
 //! # Expressions
 //! IMP defines two distinct kinds of expressions: _arithmetic_ and _boolean_. These
