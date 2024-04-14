@@ -1,0 +1,5 @@
+Y:=1;
+while X>1 do
+  Y:=Y*X;
+  X:=X-1
+od
