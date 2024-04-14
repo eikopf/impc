@@ -58,7 +58,7 @@ impl Cli {
                                 let _ = std::io::stdin()
                                     .read_line(&mut buf)
                                     .expect("received valid UTF-8");
-                                bindings.insert(name, buf.parse()?);
+                                bindings.insert(name, buf.trim().parse()?);
                             }
 
                             Interpreter::from(bindings)

@@ -43,7 +43,6 @@ use std::{
     ops::{Add, Mul, Sub},
 };
 
-use higher::Bifunctor;
 use nom::{branch::alt, combinator::fail, sequence::delimited, IResult, Parser};
 use num_traits::Unsigned;
 

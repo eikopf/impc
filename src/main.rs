@@ -4,8 +4,6 @@
 #![warn(missing_docs)]
 #![warn(clippy::missing_docs_in_private_items)]
 
-use crate::cli::Cli;
-
 extern crate static_assertions as sa;
 
 pub mod ast;
@@ -17,7 +15,5 @@ pub mod parser;
 pub mod tree;
 
 fn main() -> anyhow::Result<()> {
-    let options: Cli = argh::from_env();
-    dbg!(options.clone());
-    options.handle()
+    argh::from_env::<cli::Cli>().handle()
 }
