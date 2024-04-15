@@ -7,7 +7,7 @@
 #![allow(clippy::missing_docs_in_private_items)]
 #![allow(dead_code)]
 
-use std::{collections::HashMap, ffi::OsString, io::Write, str::FromStr};
+use std::{collections::HashMap, path::PathBuf, str::FromStr};
 
 use argh::FromArgs;
 use nom::{
@@ -22,8 +22,9 @@ use nom::{
 
 use crate::{
     ast::Ast,
-    backend::interpreter::Interpreter,
-    int::ImpSize, tree::{Evaluator, Tree},
+    backend::interpreter::{Interpreter, State},
+    int::ImpSize,
+    tree::{Evaluator, Tree},
 };
 
 /// A compiler for the IMP programming language.
@@ -37,39 +38,7 @@ impl Cli {
     /// Consumes `self` and processes the given subcommand.
     pub fn handle(self) -> anyhow::Result<()> {
         match self.cmd {
-            CliSubCommand::Run(args) => match &args.backend {
-                Backend::ByteCode => todo!(),
-                Backend::Interpreter => {
-                    let source = std::fs::read_to_string(args.file)?;
-                    let ast: Ast<String, ImpSize> = Ast::from_str(&source)?;
-
-                    let interpreter: Interpreter<String, ImpSize> = match args.bindings {
-                        Some(bindings) => Interpreter::from(bindings.map),
-                        None => {
-                            let mut names: Vec<_> = ast.names().into_iter().cloned().collect();
-                            names.sort_unstable();
-
-                            let mut bindings = HashMap::<String, ImpSize>::new();
-
-                            for name in names {
-                                print!("Provide a binding for {name}: ");
-                                let _ = std::io::stdout().flush();
-                                let mut buf = String::new();
-                                let _ = std::io::stdin()
-                                    .read_line(&mut buf)
-                                    .expect("received valid UTF-8");
-                                bindings.insert(name, buf.trim().parse()?);
-                            }
-
-                            Interpreter::from(bindings)
-                        }
-                    };
-
-                    let result = interpreter.eval(&ast.root())?;
-                    println!("{:?}", result);
-                    Ok(())
-                }
-            },
+            CliSubCommand::Run(args) => args.handle(),
         }
     }
 }
@@ -97,7 +66,50 @@ struct Run {
 
     /// a path to an .imp file
     #[argh(positional)]
-    file: OsString,
+    file: PathBuf,
+}
+
+impl Run {
+    /// Consumes `self` and executes the given IMP program.
+    fn handle(self) -> anyhow::Result<()> {
+        match &self.backend {
+            Backend::ByteCode => todo!(),
+            Backend::Interpreter => {
+                let source = std::fs::read_to_string(&self.file)?;
+                let ast: Ast<String, ImpSize> = Ast::from_str(&source)?;
+
+                let interpreter: Interpreter<String, ImpSize> =
+                    Interpreter::from_initial_state(match self.bindings {
+                        Some(bindings) => State::from(bindings.map),
+                        None => {
+                            // first sort names
+                            let mut names: Vec<_> = ast.names().into_iter().cloned().collect();
+                            names.sort_unstable();
+
+                            // then prompt for bindings and construct state
+                            State::<String, _>::prompt_for_bindings(
+                                &names,
+                                &mut std::io::stdin().lock(),
+                                &mut std::io::stdout(),
+                            )?
+                        }
+                    });
+
+                let result = interpreter.eval(&ast.root())?;
+                println!(
+                    "\nExecuted {}, yielding the following final state: {}",
+                    &self
+                        .file
+                        .file_name()
+                        .expect("is not a directory")
+                        .to_str()
+                        .unwrap_or("{{INVALID UTF-8 FILENAME}}"),
+                    result
+                );
+                Ok(())
+            }
+        }
+    }
 }
 
 /// A simple set of marker values, corresponding to particular implementations

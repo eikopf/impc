@@ -2,8 +2,11 @@
 
 use std::{
     collections::HashMap,
+    fmt::{Display, Write as _},
     hash::Hash,
+    io::{BufRead, Write},
     ops::{Add, BitAnd, BitOr, Deref, Mul, Not, Sub},
+    str::FromStr,
 };
 
 use thiserror::Error;
@@ -19,6 +22,38 @@ pub struct State<V, T>(HashMap<V, T>)
 where
     V: Hash + Eq;
 
+impl<V, T> Display for State<V, T>
+where
+    V: Hash + Eq + Ord + Display,
+    T: Display,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let sorted_keys = {
+            let mut keys = self.0.keys().collect::<Vec<_>>();
+            keys.sort_unstable();
+            keys
+        };
+
+        write!(
+            f,
+            "{{\n{}}}",
+            sorted_keys.into_iter().fold(String::new(), |mut buf, key| {
+                let _ = writeln!(buf, "\t{key}: {}, ", self.0.get(key).expect("key is defined"));
+                buf
+            })
+        )
+    }
+}
+
+impl<V, T> From<HashMap<V, T>> for State<V, T>
+where
+    V: Hash + Eq,
+{
+    fn from(value: HashMap<V, T>) -> Self {
+        Self(value)
+    }
+}
+
 impl<V, T> State<V, T>
 where
     V: Hash + Eq,
@@ -26,6 +61,30 @@ where
     /// Returns the value of the given `var`, or `None` if it is unbound.
     pub fn get(&self, var: &V) -> Option<&T> {
         self.0.get(var)
+    }
+
+    /// Prompts interactively for bindings for the given `names` using `reader` and `writer`.
+    pub fn prompt_for_bindings<R, W>(
+        names: &[String],
+        reader: &mut R,
+        writer: &mut W,
+    ) -> Result<State<String, T>, <T as FromStr>::Err>
+    where
+        T: FromStr,
+        R: BufRead,
+        W: Write,
+    {
+        let mut bindings = HashMap::<String, T>::new();
+
+        for name in names {
+            print!("Provide a binding for {name}: ");
+            let _ = writer.flush();
+            let mut buf = String::new();
+            let _ = reader.read_line(&mut buf).expect("received valid UTF-8");
+            let _ = bindings.insert(name.clone(), buf.trim().parse()?);
+        }
+
+        Ok(State(bindings))
     }
 }
 
@@ -143,6 +202,16 @@ where
         Interpreter {
             state: State(value),
         }
+    }
+}
+
+impl<V, T> Interpreter<V, T>
+where
+    V: Eq + Hash,
+{
+    /// Constructs a new [`Interpreter`] with the given `state`.
+    pub fn from_initial_state(state: State<V, T>) -> Self {
+        Self { state }
     }
 }
 
