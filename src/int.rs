@@ -2,7 +2,8 @@
 
 use std::{
     fmt::{Binary, Display, LowerExp, LowerHex, Octal, UpperExp, UpperHex},
-    ops::{Add, Deref, Div, Mul, Rem, Sub}, str::FromStr,
+    ops::{Add, Deref, Div, Mul, Rem, Sub},
+    str::FromStr,
 };
 
 use num_traits::{Bounded, ConstOne, ConstZero, Num, One, SaturatingSub, Unsigned, Zero};
@@ -32,6 +33,36 @@ macro_rules! imp_int_impls {
 
         // assertion: INT::MIN == INT::ZERO
         crate::sa::const_assert_eq!(ImpInt::<$int>::MIN.0, <$int>::ZERO);
+
+        impl std::ops::Add for ImpInt<$int> {
+            type Output = Self;
+
+            #[inline(always)]
+            fn add(self, rhs: Self) -> Self::Output {
+                Self(self.0.checked_add(rhs.0)
+                    .expect("attempted addition which would have caused integer overflow"))
+            }
+        }
+
+        impl Mul for ImpInt<$int> {
+            type Output = Self;
+
+            #[inline(always)]
+            fn mul(self, rhs: Self) -> Self::Output {
+                Self(self.0.checked_mul(rhs.0)
+                    .expect("attempted multiplication which would have caused integer overflow"))
+            }
+        }
+
+        impl Sub for ImpInt<$int> {
+            type Output = Self;
+
+            #[inline(always)]
+            fn sub(self, rhs: Self) -> Self::Output {
+                Self(self.0.saturating_sub(rhs.0))
+            }
+        }
+
     };
 
     ($head:ty, $($tail:ty),+) => {
@@ -132,7 +163,10 @@ impl<T: UpperExp> UpperExp for ImpInt<T> {
     }
 }
 
-impl<T: Zero> Zero for ImpInt<T> {
+impl<T: Zero> Zero for ImpInt<T>
+where
+    Self: Add<Output = Self>,
+{
     #[inline(always)]
     fn zero() -> Self {
         Self(T::zero())
@@ -144,18 +178,27 @@ impl<T: Zero> Zero for ImpInt<T> {
     }
 }
 
-impl<T: ConstZero> ConstZero for ImpInt<T> {
+impl<T: ConstZero> ConstZero for ImpInt<T>
+where
+    Self: Add<Output = Self>,
+{
     const ZERO: Self = Self(T::ZERO);
 }
 
-impl<T: One> One for ImpInt<T> {
+impl<T: One> One for ImpInt<T>
+where
+    Self: Mul<Output = Self>,
+{
     #[inline(always)]
     fn one() -> Self {
         Self(T::one())
     }
 }
 
-impl<T: ConstOne> ConstOne for ImpInt<T> {
+impl<T: ConstOne> ConstOne for ImpInt<T>
+where
+    Self: Mul<Output = Self>,
+{
     const ONE: Self = Self(T::ONE);
 }
 
@@ -191,34 +234,10 @@ impl<T> Rem for ImpInt<T> {
     }
 }
 
-impl<T: Add<Output = T>> Add for ImpInt<T> {
-    type Output = Self;
-
-    #[inline(always)]
-    fn add(self, rhs: Self) -> Self::Output {
-        Self(self.0 + rhs.0)
-    }
-}
-
-impl<T: Mul<Output = T>> Mul for ImpInt<T> {
-    type Output = Self;
-
-    #[inline(always)]
-    fn mul(self, rhs: Self) -> Self::Output {
-        Self(self.0 * rhs.0)
-    }
-}
-
-impl<T: SaturatingSub<Output = T>> Sub for ImpInt<T> {
-    type Output = Self;
-
-    #[inline(always)]
-    fn sub(self, rhs: Self) -> Self::Output {
-        Self(self.0.saturating_sub(&rhs.0))
-    }
-}
-
-impl<T: Num + SaturatingSub> Num for ImpInt<T> {
+impl<T: Num + SaturatingSub> Num for ImpInt<T>
+where
+    Self: Add<Output = Self> + Mul<Output = Self> + Sub<Output = Self>,
+{
     type FromStrRadixErr = <T as Num>::FromStrRadixErr;
 
     #[inline(always)]
@@ -227,7 +246,10 @@ impl<T: Num + SaturatingSub> Num for ImpInt<T> {
     }
 }
 
-impl<T: Num + Unsigned + SaturatingSub> Unsigned for ImpInt<T> {}
+impl<T: Num + Unsigned + SaturatingSub> Unsigned for ImpInt<T> where
+    Self: Add<Output = Self> + Mul<Output = Self> + Sub<Output = Self>
+{
+}
 
 impl<T> ImpInt<T> {
     /// Consumes `self` and returns the underlying value.
