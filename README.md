@@ -1,8 +1,23 @@
 # `impc`
 > A compiler for the IMP programming language.
 
+## Installation and Usage
+> As of 15/05/2024, `impc` has not been published to [crates.io](https://crates.io).
+
+Assuming you have a Rust toolchain installed on your system (if not, follow [these instructions](https://rustup.rs)), then `impc` can be installed using `cargo install`.
+
+```sh
+# from crates.io
+cargo install impc
+
+# from source
+cargo install --git https://github.com/eikopf/impc.git
+```
+
+With `impc` installed, run `impc --help` and `impc run --help` for the specific details of its usage. To run an IMP program, you can use the `impc run <filename>` command and optionally select a particular backend with the `--backend` option. You can also provide explicit bindings with the `--let` option if you want to avoid the interactive prompt stage.
+
 ## IMP
-IMP is, largely speaking, a _deeply_ uninteresting language. Its entire grammar can be given in a single 30-line ANTLR4 `.g4` file (see below), and its semantics are incredibly simple.
+IMP is, largely speaking, a _deeply_ uninteresting language; its entire grammar can be given in a single 30-line ANTLR4 `.g4` file (see below), and its semantics are incredibly simple.
 
 In IMP,
 1. all variables are always in scope, and must have bound values prior to execution;
@@ -14,7 +29,7 @@ In IMP,
 7. commands are executed in-order, and only assignment commands can yield side-effects (namely value-binding);
 8. `while` and `if` commands behave with the expected semantics.
 
-These properties admit the single interesting characteristic of IMP: it is can be aggressively optimised. In general, commands can be arbitrarily reordered so long as the order of assignment commands is preserved, and even then it can often be shown that arbitrary reorderings of assignment commands are valid (i.e. they are disjoint). In more complex situations, these properties can be used to unroll, inline, or almost entirely erase `while` and `if` commands.
+These properties admit the single interesting characteristic of IMP: it is can be aggressively optimised. In general, commands can be arbitrarily reordered so long as the order of assignment commands is preserved, and even then it can often be shown that arbitrary reorderings of assignment commands are valid (i.e. if they are disjoint). In more complex situations, these properties can be used to unroll, inline, or almost entirely erase `while` and `if` commands.
 
 ```antlr
 grammar IMP;
