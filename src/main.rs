@@ -15,6 +15,13 @@ pub mod parser;
 pub mod tree;
 
 fn main() -> anyhow::Result<()> {
-    // reads arguments and passes them to handle()
+    // register custom panic handler
+    better_panic::Settings::auto()
+        .backtrace_first(false)
+        .message("\nimpc panicked with the following error:")
+        .lineno_suffix(true)
+        .install();
+
+    // parse cli arguments and handle them
     argh::from_env::<cli::Cli>().handle()
 }

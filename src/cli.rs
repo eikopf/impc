@@ -155,8 +155,8 @@ impl FromStr for Bindings {
                 delimited(multispace0, tag(","), multispace0),
                 context(
                     "expected name-value binding",
-                    cut(separated_pair(
-                        cut(context("expected name", alphanumeric1)),
+                    separated_pair(
+                        context("expected name", alphanumeric1),
                         delimited(
                             multispace0,
                             context("expected colon", tag(":")),
@@ -169,7 +169,7 @@ impl FromStr for Bindings {
                                 ImpSize::from_str,
                             ),
                         )),
-                    )),
+                    ),
                 ),
             ),
             pair(opt(multispace0), tag("}")),

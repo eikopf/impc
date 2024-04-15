@@ -92,7 +92,7 @@ where
 /// attempting to read unbound variables while evaluating
 /// arithmetic expressions.
 #[derive(Debug, Clone, Error, PartialEq, Eq)]
-#[error("The following variables are unbound: {0:?}")]
+#[error("the following variables are unbound: {0:#?}")]
 pub struct VariableBindingError<V>(Vec<V>);
 
 /// A tree-walk interpreter for IMP programs, which
