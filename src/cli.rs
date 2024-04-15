@@ -38,7 +38,7 @@ impl Cli {
     /// Consumes `self` and processes the given subcommand.
     pub fn handle(self) -> anyhow::Result<()> {
         match self.cmd {
-            CliSubCommand::Run(args) => args.handle(),
+            CliSubCommand::Run(args) => Run::run(args),
         }
     }
 }
@@ -71,7 +71,7 @@ struct Run {
 
 impl Run {
     /// Consumes `self` and executes the given IMP program.
-    fn handle(self) -> anyhow::Result<()> {
+    fn run(self) -> anyhow::Result<()> {
         match &self.backend {
             Backend::ByteCode => todo!(),
             Backend::Interpreter => {

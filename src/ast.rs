@@ -21,10 +21,10 @@ use crate::{
 #[derive(Debug, Error, PartialEq)]
 pub enum AstFromStringError<T> {
     /// The error produced if the conversion fails in the lexer.
-    #[error("Error occurred in lexer: {0}")]
+    #[error("error occurred in lexer:\n{0}")]
     Lexer(nom::error::VerboseError<String>),
     /// The error produced if the conversion fails in the parser.
-    #[error("Error occurred in parser: {0}")]
+    #[error("error occurred in parser:\n{0}")]
     Parser(nom::error::Error<Tokens<String, T>>),
 }
 

@@ -15,5 +15,6 @@ pub mod parser;
 pub mod tree;
 
 fn main() -> anyhow::Result<()> {
+    // reads arguments and passes them to handle()
     argh::from_env::<cli::Cli>().handle()
 }
