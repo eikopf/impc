@@ -178,7 +178,7 @@ impl<V, T> Bexp<V, T> {
     }
 
     /// Maps `op` over the variable nodes of `self`, leaving all other nodes unchanged.
-    pub fn map_vars<U>(self, op: fn(V) -> U) -> Bexp<U, T> {
+    pub fn map_vars<F, U>(self, op: &F) -> Bexp<U, T> where F: Fn(V) -> U {
         match self {
             Bexp::Atom(atom) => Bexp::Atom(atom),
             Bexp::Eq(lhs, rhs) => Bexp::eq(lhs.map_vars(op), rhs.map_vars(op)),

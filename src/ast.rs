@@ -67,7 +67,7 @@ where
             .map_err(|err| AstFromStringError::Parser(owned_parser_error(err)))?;
 
         Ok(Ast {
-            root: root.map_vars(String::from),
+            root: root.map_vars(&String::from),
         })
     }
 }

@@ -175,14 +175,16 @@ where
 
 impl<V, T> Cmd<V, T> {
     /// Maps `op` over the variable nodes of `self`, leaving all other nodes unchanged.
-    pub fn map_vars<U>(self, op: fn(V) -> U) -> Cmd<U, T> {
+    pub fn map_vars<F, U>(self, op: &F) -> Cmd<U, T>
+    where
+        F: Fn(V) -> U,
+    {
         match self {
             Cmd::Skip => Cmd::Skip,
             Cmd::Assign(var, rhs) => Cmd::Assign(op(var), rhs.map_vars(op)),
-            Cmd::Seq(first, second) => Cmd::Seq(
-                Box::new(first.map_vars(op)),
-                Box::new(second.map_vars(op)),
-            ),
+            Cmd::Seq(first, second) => {
+                Cmd::Seq(Box::new(first.map_vars(op)), Box::new(second.map_vars(op)))
+            }
             Cmd::If {
                 cond,
                 true_case,

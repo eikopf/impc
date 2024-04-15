@@ -214,7 +214,9 @@ impl<V, T> Aexp<V, T> {
 
     /// Maps `op` over the variable nodes of `self`, leaving all
     /// other nodes unchanged.
-    pub fn map_vars<U>(self, op: fn(V) -> U) -> Aexp<U, T>
+    pub fn map_vars<F, U>(self, op: &F) -> Aexp<U, T>
+    where
+        F: Fn(V) -> U,
     {
         match self {
             Aexp::Int(int) => Aexp::Int(int),
