@@ -9,25 +9,32 @@
 //! replaced in their entirety by the [`token`] and [`tokens`] functions (which act like
 //! [`nom::bytes::complete::tag`] for individual tokens and token slices respectively).
 
-use nom::{combinator::fail, error::ParseError, sequence::separated_pair, Parser};
+use nom::{combinator::fail, error::ParseError, IResult, Parser};
 
 /// Returns a [`Parser`] that matches the pair `(lhs, rhs)` separated
 /// by `operator`, and then invokes `constructor` to produce a result
 /// in the successful case.
 #[inline(always)]
-pub fn binary_expr<I, L, Op, R, O, E>(
-    lhs: impl Parser<I, L, E> + Clone,
-    operator: impl Parser<I, Op, E> + Clone,
-    rhs: impl Parser<I, R, E> + Clone,
+pub fn binary_expr<F, G, H, I, L, Op, R, O, E>(
+    mut lhs: F,
+    mut operator: G,
+    mut rhs: H,
     constructor: impl FnOnce(L, R) -> O + Clone,
-) -> impl Parser<I, O, E>
+) -> impl FnMut(I) -> IResult<I, O, E>
 where
+    I: Copy,
     E: ParseError<I>,
+    F: Parser<I, L, E>,
+    G: Parser<I, Op, E>,
+    H: Parser<I, R, E>,
 {
+    // this is basically a rewrite of the body of separated_pair,
+    // since otherwise the compiler cannot infer this closue as a FnMut
     move |input| {
-        separated_pair(lhs.clone(), operator.clone(), rhs.clone())
-            .parse(input)
-            .map(|(tail, (lhs, rhs))| (tail, constructor.clone()(lhs, rhs)))
+        let (input, left) = lhs.parse(input)?;
+        let (input, _) = operator.parse(input)?;
+        let (input, right) = rhs.parse(input)?;
+        Ok((input, constructor.clone()(left, right)))
     }
 }
 
@@ -46,9 +53,11 @@ where
     T: 'src + PartialEq,
     E: ParseError<&'src [T]>,
 {
-    move |tokens: &'src [T]| match tokens.split_first() {
-        Some((head, tail)) if head == t => Ok((tail, head)),
-        _ => fail(tokens),
+    move |tokens: &'src [T]| {
+        match tokens.split_first() {
+            Some((head, tail)) if head == t => Ok((tail, head)),
+            _ => fail(tokens),
+        }
     }
 }
 
