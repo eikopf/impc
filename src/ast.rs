@@ -3,6 +3,7 @@
 use std::{collections::HashSet, hash::Hash, str::FromStr};
 
 use nom::Finish;
+use nom_supreme::final_parser::final_parser;
 use thiserror::Error;
 
 use crate::{
@@ -61,9 +62,7 @@ where
             .try_into()
             .map_err(|err| AstFromStringError::Lexer(owned_lex_error(err)))?;
 
-        let root: Cmd<&str, T> = cmd(&tokens)
-            .finish()
-            .map(|(_tail, cmd)| cmd)
+        let root: Cmd<&str, T> = final_parser(cmd)(&tokens)
             .map_err(|err| AstFromStringError::Parser(owned_parser_error(err)))?;
 
         Ok(Ast {
