@@ -182,8 +182,8 @@ impl<V, T> Bexp<V, T> {
         match self {
             Bexp::Atom(atom) => Bexp::Atom(atom),
             Bexp::Eq(lhs, rhs) => Bexp::eq(lhs.map_vars(op), rhs.map_vars(op)),
-            Bexp::LessThan(lhs, rhs) => Bexp::gt(lhs.map_vars(op), rhs.map_vars(op)),
-            Bexp::GreaterThan(lhs, rhs) => Bexp::lt(lhs.map_vars(op), rhs.map_vars(op)),
+            Bexp::LessThan(lhs, rhs) => Bexp::lt(lhs.map_vars(op), rhs.map_vars(op)),
+            Bexp::GreaterThan(lhs, rhs) => Bexp::gt(lhs.map_vars(op), rhs.map_vars(op)),
             Bexp::Not(inner) => !(inner.map_vars(op)),
             Bexp::And(lhs, rhs) => lhs.map_vars(op) & rhs.map_vars(op),
             Bexp::Or(lhs, rhs) => lhs.map_vars(op) | rhs.map_vars(op),
