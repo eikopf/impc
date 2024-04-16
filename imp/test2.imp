@@ -1,7 +1,0 @@
-while X <> Y do
-  if X>Y then
-    X := X-Y
-  else
-    Y := Y-X
-  fi
-od
