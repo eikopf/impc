@@ -22,6 +22,9 @@ fn main() -> anyhow::Result<()> {
         .lineno_suffix(true)
         .install();
 
-    // parse cli arguments and handle them
-    argh::from_env::<cli::Cli>().handle()
+    // parse cli arguments
+    let args = argh::from_env::<cli::Cli>();
+
+    // process arguments and execute accordingly
+    cli::Cli::handle(args)
 }
