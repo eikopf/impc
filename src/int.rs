@@ -6,6 +6,7 @@ use std::{
     str::FromStr,
 };
 
+use num_bigint::BigUint;
 use num_traits::{Bounded, ConstOne, ConstZero, Num, One, SaturatingSub, Unsigned, Zero};
 
 /// A `usize` conforming to IMP semantics.
@@ -20,6 +21,41 @@ pub type Imp32 = ImpInt<u32>;
 pub type Imp64 = ImpInt<u64>;
 /// A `u128` conforming to IMP semantics.
 pub type Imp128 = ImpInt<u128>;
+/// An arbitrary-precision unsigned integer conforming
+/// to IMP semantics. Its maximum value is architecture
+/// dependent, but is guaranteed to be at least `32^(2^31)` 
+/// on 32-bit targets and at least `32^(2^63)` on 64-bit
+/// targets.
+pub type ImpBigInt = ImpInt<BigUint>;
+
+impl Add for ImpBigInt {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        Self(self.0 + rhs.0)
+    }
+}
+
+impl Mul for ImpBigInt {
+    type Output = Self;
+
+    fn mul(self, rhs: Self) -> Self::Output {
+        Self(self.0 * rhs.0)
+    }
+}
+
+impl Sub for ImpBigInt {
+    type Output = Self;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        // BigUint doesn't implement SaturatingSub, so this
+        // manual check is required
+        Self(match self.0 > rhs.0 {
+            true => self.0 - rhs.0,
+            false => BigUint::zero(),
+        })
+    }
+}
 
 /// Creates `impl` blocks with associated constants for the given `ImpInt<$int>` types.
 macro_rules! imp_int_impls {
@@ -34,6 +70,17 @@ macro_rules! imp_int_impls {
         // assertion: INT::MIN == INT::ZERO
         crate::sa::const_assert_eq!(ImpInt::<$int>::MIN.0, <$int>::ZERO);
 
+    };
+
+    ($head:ty, $($tail:ty),+) => {
+        imp_int_impls!($head);
+        imp_int_impls!($($tail),+);
+    };
+}
+
+/// Creates `impl` blocks for [`Add`], [`Mul`], and [`Sub`] conforming to IMP integer semantics.
+macro_rules! imp_op_impls {
+    ($int:ty) => {
         impl std::ops::Add for ImpInt<$int> {
             type Output = Self;
 
@@ -66,12 +113,13 @@ macro_rules! imp_int_impls {
     };
 
     ($head:ty, $($tail:ty),+) => {
-        imp_int_impls!($head);
-        imp_int_impls!($($tail),+);
+        imp_op_impls!($head);
+        imp_op_impls!($($tail),+);
     };
 }
 
 imp_int_impls!(usize, u8, u16, u32, u64, u128);
+imp_op_impls!(usize, u8, u16, u32, u64, u128);
 
 /// A thin wrapper around an integer of type `T`, modifying
 /// its [`Sub`] implementation to conform to IMP's integer semantics.
