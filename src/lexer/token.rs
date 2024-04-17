@@ -77,7 +77,30 @@ impl<T> From<Token<&str, T>> for Token<String, T> {
     fn from(value: Token<&str, T>) -> Self {
         match value {
             Token::Var(var) => Token::Var(var.to_string()),
-            other => other.into(),
+            Token::Int(int) => Token::Int(int),
+            Token::Semicolon => Token::Semicolon,
+            Token::LeftParen => Token::LeftParen,
+            Token::RightParen => Token::RightParen,
+            Token::Skip => Token::Skip,
+            Token::Assign => Token::Assign,
+            Token::Star => Token::Star,
+            Token::Plus => Token::Plus,
+            Token::Minus => Token::Minus,
+            Token::If => Token::If,
+            Token::Then => Token::Then,
+            Token::Else => Token::Else,
+            Token::Fi => Token::Fi,
+            Token::While => Token::While,
+            Token::Do => Token::Do,
+            Token::Od => Token::Od,
+            Token::True => Token::True,
+            Token::False => Token::False,
+            Token::Equals => Token::Equals,
+            Token::LeftAngleBracket => Token::LeftAngleBracket,
+            Token::RightAngleBracket => Token::RightAngleBracket,
+            Token::Not => Token::Not,
+            Token::And => Token::And,
+            Token::Or => Token::Or,
         }
     }
 }
