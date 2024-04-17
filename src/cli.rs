@@ -7,7 +7,13 @@
 #![allow(clippy::missing_docs_in_private_items)]
 #![allow(dead_code)]
 
-use std::{collections::HashMap, path::PathBuf, str::FromStr};
+use std::{
+    collections::HashMap,
+    fmt::{Debug, Display},
+    ops::{Add, Mul, Sub},
+    path::PathBuf,
+    str::FromStr,
+};
 
 use argh::FromArgs;
 use nom::{
@@ -23,7 +29,7 @@ use nom::{
 use crate::{
     ast::Ast,
     backend::interpreter::{Interpreter, State},
-    int::ImpSize,
+    int::{ImpBigInt, ImpSize},
     tree::{Evaluator, Tree},
 };
 
@@ -38,7 +44,10 @@ impl Cli {
     /// Consumes `self` and processes the given subcommand.
     pub fn handle(self) -> anyhow::Result<()> {
         match self.cmd {
-            CliSubCommand::Run(args) => Run::run(args),
+            CliSubCommand::Run(args) => match args.bigint {
+                true => Run::run::<ImpBigInt>(args),
+                false => Run::run::<ImpSize>(args),
+            },
         }
     }
 }
@@ -55,14 +64,18 @@ enum CliSubCommand {
 #[derive(Debug, Clone, FromArgs)]
 #[argh(subcommand, name = "run")]
 struct Run {
-    /// selects a particular backend (defaults to interpreter)
+    /// select a particular backend (defaults to interpreter)
     #[argh(option, short = 'b', default = "Backend::default()")]
     backend: Backend,
 
-    /// defines a set of variable bindings via a comma-separated list
+    /// define a set of variable bindings via a comma-separated list
     /// (e.g. {{ X: 2, Y: 0 }}), where the empty set is given by {{}}
     #[argh(option, long = "let", short = 'l')]
     bindings: Option<Bindings>,
+
+    /// use arbitrary-precision integers during execution
+    #[argh(switch)]
+    bigint: bool,
 
     /// a path to an .imp file
     #[argh(positional)]
@@ -71,23 +84,46 @@ struct Run {
 
 impl Run {
     /// Consumes `self` and executes the given IMP program.
-    fn run(self) -> anyhow::Result<()> {
+    fn run<T>(self) -> anyhow::Result<()>
+    where
+        T: 'static
+            + Clone
+            + Eq
+            + Sync
+            + Send
+            + Debug
+            + Ord
+            + Add<Output = T>
+            + Mul<Output = T>
+            + Sub<Output = T>
+            + FromStr
+            + TryFrom<usize>
+            + Display,
+        <T as FromStr>::Err: Sync + Send + std::error::Error,
+        <T as TryFrom<usize>>::Error: Debug
+    {
         match &self.backend {
             Backend::ByteCode => todo!(),
             Backend::Interpreter => {
                 let source = std::fs::read_to_string(&self.file)?;
-                let ast: Ast<String, ImpSize> = Ast::from_str(&source)?;
+                let ast: Ast<String, T> = Ast::from_str(&source)?;
 
-                let interpreter: Interpreter<String, ImpSize> =
+                let interpreter: Interpreter<String, T> =
                     Interpreter::from_initial_state(match self.bindings {
-                        Some(bindings) => State::from(bindings.map),
+                        Some(bindings) => State::<String, T>::from(
+                            bindings
+                                .map
+                                .into_iter()
+                                .map(|(key, value)| (key, value.try_into().unwrap()))
+                                .collect::<HashMap<_, _>>(),
+                        ),
                         None => {
                             // first sort names
                             let mut names: Vec<_> = ast.names().into_iter().cloned().collect();
                             names.sort_unstable();
 
                             // then prompt for bindings and construct state
-                            State::<String, _>::prompt_for_bindings(
+                            State::<String, T>::prompt_for_bindings(
                                 &names,
                                 &mut std::io::stdin().lock(),
                                 &mut std::io::stdout(),
@@ -142,7 +178,7 @@ impl FromStr for Backend {
 #[derive(Debug, Clone)]
 struct Bindings {
     /// The actual key-value pairs, mapping names to their bound values.
-    map: HashMap<String, ImpSize>,
+    map: HashMap<String, usize>,
 }
 
 impl FromStr for Bindings {
@@ -166,7 +202,7 @@ impl FromStr for Bindings {
                             "parse digits into pointer-sized unsigned integer",
                             map_res(
                                 context("expected a digit sequence", digit1),
-                                ImpSize::from_str,
+                                <usize>::from_str,
                             ),
                         )),
                     ),
@@ -180,7 +216,7 @@ impl FromStr for Bindings {
             map: pairs
                 .into_iter()
                 .map(|(name, value)| (String::from(name), value))
-                .collect::<HashMap<String, ImpSize>>(),
+                .collect::<HashMap<String, usize>>(),
         })
         .map_err(|err: VerboseError<&str>| {
             let trace = nom::error::convert_error(s, err);
@@ -197,8 +233,8 @@ mod tests {
     fn check_bindings_parser() {
         let input = "{ X: 2,    \t\nY :3, \t\n\r Z   :\n 0  \t}";
         let bindings = Bindings::from_str(input).unwrap();
-        assert_eq!(bindings.map.get("X"), Some(&2.into()));
-        assert_eq!(bindings.map.get("Y"), Some(&3.into()));
-        assert_eq!(bindings.map.get("Z"), Some(&0.into()));
+        assert_eq!(bindings.map.get("X"), Some(&2usize.into()));
+        assert_eq!(bindings.map.get("Y"), Some(&3usize.into()));
+        assert_eq!(bindings.map.get("Z"), Some(&0usize.into()));
     }
 }

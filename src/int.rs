@@ -70,17 +70,6 @@ macro_rules! imp_int_impls {
         // assertion: INT::MIN == INT::ZERO
         crate::sa::const_assert_eq!(ImpInt::<$int>::MIN.0, <$int>::ZERO);
 
-    };
-
-    ($head:ty, $($tail:ty),+) => {
-        imp_int_impls!($head);
-        imp_int_impls!($($tail),+);
-    };
-}
-
-/// Creates `impl` blocks for [`Add`], [`Mul`], and [`Sub`] conforming to IMP integer semantics.
-macro_rules! imp_op_impls {
-    ($int:ty) => {
         impl std::ops::Add for ImpInt<$int> {
             type Output = Self;
 
@@ -91,7 +80,7 @@ macro_rules! imp_op_impls {
             }
         }
 
-        impl Mul for ImpInt<$int> {
+        impl std::ops::Mul for ImpInt<$int> {
             type Output = Self;
 
             #[inline(always)]
@@ -101,7 +90,7 @@ macro_rules! imp_op_impls {
             }
         }
 
-        impl Sub for ImpInt<$int> {
+        impl std::ops::Sub for ImpInt<$int> {
             type Output = Self;
 
             #[inline(always)]
@@ -109,17 +98,34 @@ macro_rules! imp_op_impls {
                 Self(self.0.saturating_sub(rhs.0))
             }
         }
-
     };
 
     ($head:ty, $($tail:ty),+) => {
-        imp_op_impls!($head);
-        imp_op_impls!($($tail),+);
+        imp_int_impls!($head);
+        imp_int_impls!($($tail),+);
+    };
+}
+
+/// Creates `impl TryFrom<usize>` blocks for the given `ImpInt<$int>` types.
+macro_rules! imp_int_try_from_usize {
+    ($int:ty) => {
+        impl std::convert::TryFrom<usize> for ImpInt<$int> {
+            type Error = <$int as TryFrom<usize>>::Error;
+
+            fn try_from(value: usize) -> Result<Self, Self::Error> {
+                value.try_into().map(Self)
+            }
+        }
+    };
+
+    ($head:ty, $($tail:ty),+) => {
+        imp_int_try_from_usize!($head);
+        imp_int_try_from_usize!($($tail),+);
     };
 }
 
 imp_int_impls!(usize, u8, u16, u32, u64, u128);
-imp_op_impls!(usize, u8, u16, u32, u64, u128);
+imp_int_try_from_usize!(u8, u16, u32, u64, u128, BigUint);
 
 /// A thin wrapper around an integer of type `T`, modifying
 /// its [`Sub`] implementation to conform to IMP's integer semantics.
