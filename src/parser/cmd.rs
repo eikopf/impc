@@ -227,7 +227,10 @@ fn seq<'buf, 'src, T: Clone + Eq>(input: ParserInput<'buf, 'src, T>) -> CmdResul
     // it's a bit ugly to use the binary_expr combinator here, but it saves some code repitition
     binary_expr(
         precedent,
-        token(&Token::Semicolon),
+        context(
+            "expected a semicolon separating commands",
+            token(&Token::Semicolon),
+        ),
         context("expected a command after semicolon", cut(cmd)),
         unbox2(Cmd::Seq),
     )
@@ -245,19 +248,35 @@ fn skip<'buf, 'src, T: PartialEq>(input: ParserInput<'buf, 'src, T>) -> CmdResul
 fn assign<'buf, 'src, T: Clone + Eq>(
     input: ParserInput<'buf, 'src, T>,
 ) -> CmdResult<'buf, 'src, T> {
-    binary_expr(var, token(&Token::Assign), aexp, Cmd::Assign).parse(input)
+    context("expected assignment command", binary_expr(
+        var,
+        token(&Token::Assign),
+        context("expected an arithmetic expression after :=", cut(aexp)),
+        Cmd::Assign,
+    ))
+    .parse(input)
 }
 
 /// Parses a [`Cmd::If`] from `input`.
 fn r#if<'buf, 'src, T: Clone + Eq>(input: ParserInput<'buf, 'src, T>) -> CmdResult<'buf, 'src, T> {
     delimited(
         token(&Token::If),
-        separated_pair(
-            bexp,
-            token(&Token::Then),
-            separated_pair(cmd, token(&Token::Else), cmd),
+        context(
+            "expected \"<bexp> then <cmd> else <cmd> fi\" after \"if\" keyword",
+            cut(separated_pair(
+                context("expected boolean expression", bexp),
+                context("expected \"then\" keyword", token(&Token::Then)),
+                context(
+                    "expected \"<cmd> else <cmd>\" after \"then\" keyword",
+                    separated_pair(
+                        context("expected command", cmd),
+                        context("expected \"else\" keyword", token(&Token::Else)),
+                        context("expected command", cmd),
+                    ),
+                ),
+            )),
         ),
-        token(&Token::Fi),
+        context("expected \"fi\" keyword", cut(token(&Token::Fi))),
     )
     .parse(input)
     .map(|(tail, (cond, (true_case, false_case)))| {
@@ -278,8 +297,15 @@ fn r#while<'buf, 'src, T: Clone + Eq>(
 ) -> CmdResult<'buf, 'src, T> {
     delimited(
         token(&Token::While),
-        separated_pair(bexp, token(&Token::Do), cmd),
-        token(&Token::Od),
+        context(
+            "expected \"<bexp> do <cmd>\" after \"while\" keyword",
+            cut(separated_pair(
+                context("expected a boolean expression", bexp),
+                context("expected the \"do\" keyword", token(&Token::Do)),
+                cmd,
+            )),
+        ),
+        context("expected \"od\" keyword", cut(token(&Token::Od))),
     )
     .parse(input)
     .map(|(tail, (cond, inner))| (tail, Cmd::While(cond, Box::new(inner))))

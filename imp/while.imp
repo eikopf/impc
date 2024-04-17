@@ -1,5 +1,5 @@
 Y := 1;
-whil X > 1 do
+while X > 3 do
   Y := Y * X;
   X := X - 1
 od

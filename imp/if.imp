@@ -1,0 +1,8 @@
+X := 3;
+Y := 4;
+
+if X > Y then
+  X := Y + 3;
+  skip;
+  Y := X - 7
+else skip fi
