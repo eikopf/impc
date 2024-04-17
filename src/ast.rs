@@ -26,7 +26,7 @@ pub enum AstFromStringError<T> {
     Lexer(nom::error::VerboseError<String>),
     /// The error produced if the conversion fails in the parser.
     #[error("error occurred in parser:\n{0}")]
-    Parser(nom::error::Error<Tokens<String, T>>),
+    Parser(nom::error::VerboseError<Tokens<String, T>>),
 }
 
 /// An abstract syntax tree for an IMP program.

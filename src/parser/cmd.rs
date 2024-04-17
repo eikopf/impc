@@ -46,7 +46,8 @@ use std::{collections::HashSet, hash::Hash};
 
 use nom::{
     branch::alt,
-    combinator::fail,
+    combinator::{cut, fail},
+    error::context,
     sequence::{delimited, separated_pair},
     IResult, Parser,
 };
@@ -58,7 +59,7 @@ use super::{
     bexp::{bexp, Bexp},
     expr::Expr,
     util::{binary_expr, token, unbox2},
-    ParserInput,
+    ParserError, ParserInput,
 };
 
 /// An IMP command.
@@ -200,7 +201,8 @@ impl<V, T> Cmd<V, T> {
 }
 
 /// The normal return type of parsers in the [`mod@crate::parser::cmd`] module.
-pub type CmdResult<'buf, 'src, T> = IResult<ParserInput<'buf, 'src, T>, Cmd<&'src str, T>>;
+pub type CmdResult<'buf, 'src, T> =
+    IResult<ParserInput<'buf, 'src, T>, Cmd<&'src str, T>, ParserError<'buf, 'src, T>>;
 
 /// Parses an individual [`Cmd`] from `input`.
 pub fn cmd<'buf, 'src, T: Clone + Eq>(
@@ -223,7 +225,13 @@ fn precedent<'buf, 'src, T: Clone + Eq>(
 /// Parses a [`Cmd::Seq`] from `input`.
 fn seq<'buf, 'src, T: Clone + Eq>(input: ParserInput<'buf, 'src, T>) -> CmdResult<'buf, 'src, T> {
     // it's a bit ugly to use the binary_expr combinator here, but it saves some code repitition
-    binary_expr(precedent, token(&Token::Semicolon), cmd, unbox2(Cmd::Seq)).parse(input)
+    binary_expr(
+        precedent,
+        token(&Token::Semicolon),
+        context("expected a command after semicolon", cut(cmd)),
+        unbox2(Cmd::Seq),
+    )
+    .parse(input)
 }
 
 /// Parses a [`Cmd::Skip`] from `input`.
@@ -280,7 +288,7 @@ fn r#while<'buf, 'src, T: Clone + Eq>(
 /// Parses a variable from `input` by extracting from a [`Token::Var`].
 fn var<'buf, 'src, T>(
     input: ParserInput<'buf, 'src, T>,
-) -> IResult<ParserInput<'buf, 'src, T>, &'src str> {
+) -> IResult<ParserInput<'buf, 'src, T>, &'src str, ParserError<'buf, 'src, T>> {
     match input.split_first() {
         Some((Token::Var(var), tail)) => Ok((tail, var)),
         _ => fail(input),

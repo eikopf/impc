@@ -53,9 +53,7 @@ use crate::{
 };
 
 use super::{
-    expr::Expr,
-    util::{binary_expr, token},
-    ParserInput,
+    expr::Expr, util::{binary_expr, token}, ParserError, ParserInput
 };
 
 /// An arithmetic expression.
@@ -230,7 +228,7 @@ impl<V, T> Aexp<V, T> {
 
 /// The return type of parsers in the [`crate::parser::aexp`] module.
 pub type AexpResult<'buf, 'src, T = usize> =
-    IResult<ParserInput<'buf, 'src, T>, Aexp<&'src str, T>>;
+    IResult<ParserInput<'buf, 'src, T>, Aexp<&'src str, T>, ParserError<'buf, 'src, T>>;
 
 /// Parses a complete [`Aexp`] from `input`.
 pub fn aexp<'buf, 'src, T: 'buf + Clone + Eq>(

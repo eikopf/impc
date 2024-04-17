@@ -39,16 +39,13 @@ use nom::{
     IResult, Parser,
 };
 
-use crate::{
-    tree::Tree,
-    int::ImpSize,
-    lexer::token::Token,
-};
+use crate::{int::ImpSize, lexer::token::Token, tree::Tree};
 
 use super::{
     aexp::{aexp, Aexp},
     expr::Expr,
-    util::{binary_expr, token, tokens}, ParserInput,
+    util::{binary_expr, token, tokens},
+    ParserError, ParserInput,
 };
 
 /// A boolean expression.
@@ -178,7 +175,10 @@ impl<V, T> Bexp<V, T> {
     }
 
     /// Maps `op` over the variable nodes of `self`, leaving all other nodes unchanged.
-    pub fn map_vars<F, U>(self, op: &F) -> Bexp<U, T> where F: Fn(V) -> U {
+    pub fn map_vars<F, U>(self, op: &F) -> Bexp<U, T>
+    where
+        F: Fn(V) -> U,
+    {
         match self {
             Bexp::Atom(atom) => Bexp::Atom(atom),
             Bexp::Eq(lhs, rhs) => Bexp::eq(lhs.map_vars(op), rhs.map_vars(op)),
@@ -192,7 +192,8 @@ impl<V, T> Bexp<V, T> {
 }
 
 /// The return type of parsers in the [`crate::parser::bexp`] module.
-pub type BexpResult<'buf, 'src, T = usize> = IResult<ParserInput<'buf, 'src, T>, Bexp<&'src str, T>>;
+pub type BexpResult<'buf, 'src, T = usize> =
+    IResult<ParserInput<'buf, 'src, T>, Bexp<&'src str, T>, ParserError<'buf, 'src, T>>;
 
 /// Parses a [`Bexp`] from `input`.
 pub fn bexp<'buf, 'src, T: Clone + Eq>(
@@ -239,7 +240,9 @@ fn proposition<'buf, 'src, T: Clone + Eq>(
     let not_eq_tokens = &[Token::LeftAngleBracket, Token::RightAngleBracket];
 
     alt((
-        binary_expr(aexp, tokens(not_eq_tokens), aexp, |lhs, rhs| !Bexp::eq(lhs, rhs)),
+        binary_expr(aexp, tokens(not_eq_tokens), aexp, |lhs, rhs| {
+            !Bexp::eq(lhs, rhs)
+        }),
         binary_expr(aexp, token(&Token::RightAngleBracket), aexp, Bexp::gt),
         binary_expr(aexp, token(&Token::LeftAngleBracket), aexp, Bexp::lt),
         binary_expr(aexp, token(&Token::Equals), aexp, Bexp::eq),
