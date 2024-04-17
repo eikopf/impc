@@ -2,7 +2,7 @@
 > A compiler for the IMP programming language.
 
 ## Installation and Usage
-> As of 15/05/2024, `impc` has not been published to [crates.io](https://crates.io).
+> As of 17/04/2024, `impc` has not been published to [crates.io](https://crates.io).
 
 Assuming you have a Rust toolchain installed on your system (if not, follow [these instructions](https://rustup.rs)), then `impc` can be installed using `cargo install`.
 
