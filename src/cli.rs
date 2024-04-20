@@ -59,11 +59,15 @@ enum CliSubCommand {
     Run(Run),
 }
 
-/// Runs an .imp file using a simple tree-walk intepreter. If bindings are not provided with 
-/// the --let option, they will be assigned with an interactive prompt before execution.
+/// Runs an .imp file, optionally using a particular backend and/or provided variable bindings.
+/// If bindings are not provided, they will be assigned via interactive prompt.
 #[derive(Debug, Clone, FromArgs)]
 #[argh(subcommand, name = "run")]
 struct Run {
+    /// select a particular backend (defaults to interpreter)
+    #[argh(option, short = 'b', default = "Backend::default()")]
+    backend: Backend,
+
     /// define a set of variable bindings via a comma-separated list
     /// (e.g. {{ X: 2, Y: 0 }}), where the empty set is given by {{}}
     #[argh(option, long = "let", short = 'l')]
@@ -96,46 +100,76 @@ impl Run {
             + TryFrom<usize>
             + Display,
         <T as FromStr>::Err: Sync + Send + std::error::Error,
-        <T as TryFrom<usize>>::Error: Debug,
+        <T as TryFrom<usize>>::Error: Debug
     {
-        let source = std::fs::read_to_string(&self.file)?;
-        let ast: Ast<String, T> = Ast::from_str(&source)?;
+        match &self.backend {
+            Backend::ByteCode => todo!(),
+            Backend::Interpreter => {
+                let source = std::fs::read_to_string(&self.file)?;
+                let ast: Ast<String, T> = Ast::from_str(&source)?;
 
-        let interpreter: Interpreter<String, T> =
-            Interpreter::from_initial_state(match self.bindings {
-                Some(bindings) => State::<String, T>::from(
-                    bindings
-                        .map
-                        .into_iter()
-                        .map(|(key, value)| (key, value.try_into().unwrap()))
-                        .collect::<HashMap<_, _>>(),
-                ),
-                None => {
-                    // first sort names
-                    let mut names: Vec<_> = ast.names().into_iter().cloned().collect();
-                    names.sort_unstable();
+                let interpreter: Interpreter<String, T> =
+                    Interpreter::from_initial_state(match self.bindings {
+                        Some(bindings) => State::<String, T>::from(
+                            bindings
+                                .map
+                                .into_iter()
+                                .map(|(key, value)| (key, value.try_into().unwrap()))
+                                .collect::<HashMap<_, _>>(),
+                        ),
+                        None => {
+                            // first sort names
+                            let mut names: Vec<_> = ast.names().into_iter().cloned().collect();
+                            names.sort_unstable();
 
-                    // then prompt for bindings and construct state
-                    State::<String, T>::prompt_for_bindings(
-                        &names,
-                        &mut std::io::stdin().lock(),
-                        &mut std::io::stdout(),
-                    )?
-                }
-            });
+                            // then prompt for bindings and construct state
+                            State::<String, T>::prompt_for_bindings(
+                                &names,
+                                &mut std::io::stdin().lock(),
+                                &mut std::io::stdout(),
+                            )?
+                        }
+                    });
 
-        let result = interpreter.eval(&ast.root())?;
-        println!(
-            "\nExecuted {}, yielding the following final state: {}",
-            &self
-                .file
-                .file_name()
-                .expect("is not a directory")
-                .to_str()
-                .unwrap_or("{{INVALID UTF-8 FILENAME}}"),
-            result
-        );
-        Ok(())
+                let result = interpreter.eval(&ast.root())?;
+                println!(
+                    "\nExecuted {}, yielding the following final state: {}",
+                    &self
+                        .file
+                        .file_name()
+                        .expect("is not a directory")
+                        .to_str()
+                        .unwrap_or("{{INVALID UTF-8 FILENAME}}"),
+                    result
+                );
+                Ok(())
+            }
+        }
+    }
+}
+
+/// A simple set of marker values, corresponding to particular implementations
+/// of the [`crate::backend::Backend`] trait.
+#[derive(Debug, Clone, Copy, Default)]
+enum Backend {
+    /// Indicates that the selected backend is the [`interpreter`](crate::backend::interpreter).
+    #[default]
+    Interpreter,
+    /// Indicates that the selected backend is the bytecode virtual machine.
+    ByteCode,
+}
+
+impl FromStr for Backend {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "interpreter" => Ok(Self::Interpreter),
+            "bytecode" => Ok(Self::ByteCode),
+            other => Err(format!(
+                "expected either 'interpreter' or 'bytecode', but received '{other}' instead."
+            )),
+        }
     }
 }
 
