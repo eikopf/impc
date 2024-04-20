@@ -202,7 +202,7 @@ impl<V, T> Cmd<V, T> {
     }
 }
 
-/// The normal return type of parsers in the [`mod@crate::parser::cmd`] module.
+/// The normal return type of parsers in the [`mod@crate::cmd`] module.
 pub type CmdResult<'buf, 'src, T> =
     IResult<ParserInput<'buf, 'src, T>, Cmd<&'src str, T>, ParserError<'buf, 'src, T>>;
 

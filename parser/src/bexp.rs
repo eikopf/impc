@@ -193,7 +193,7 @@ impl<V, T> Bexp<V, T> {
     }
 }
 
-/// The return type of parsers in the [`crate::parser::bexp`] module.
+/// The return type of parsers in the [`crate::bexp`] module.
 pub type BexpResult<'buf, 'src, T = usize> =
     IResult<ParserInput<'buf, 'src, T>, Bexp<&'src str, T>, ParserError<'buf, 'src, T>>;
 

@@ -23,9 +23,9 @@ use self::token::TokenRef;
 pub mod symbol;
 pub mod token;
 
-/// The general error type produced by [`crate::lexer`] parsers.
+/// The general error type produced by [`lexers`](crate).
 pub type LexError<E> = VerboseError<E>;
-/// The general return type for [`crate::lexer`] parsers.
+/// The general return type for [`lexers`](crate).
 pub type LexResult<'src, T> = IResult<&'src str, TokenRef<'src, T>, LexError<&'src str>>;
 
 /// Converts a `LexError<&str>` into a `LexError<String>` using [`String::from`].

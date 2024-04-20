@@ -226,7 +226,7 @@ impl<V, T> Aexp<V, T> {
     }
 }
 
-/// The return type of parsers in the [`crate::parser::aexp`] module.
+/// The return type of parsers in the [`crate::aexp`] module.
 pub type AexpResult<'buf, 'src, T = usize> =
     IResult<ParserInput<'buf, 'src, T>, Aexp<&'src str, T>, ParserError<'buf, 'src, T>>;
 
