@@ -16,9 +16,7 @@ use nom::{
     Finish, IResult, Parser,
 };
 
-use token::Token;
-
-use self::token::TokenRef;
+use token::{Token, TokenRef};
 
 pub mod symbol;
 pub mod token;
