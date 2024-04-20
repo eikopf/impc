@@ -9,6 +9,7 @@
 //! both debug and release builds (excluding `ImpBigInt`, which avoids these checks by being
 //! practically unbounded).
 
+#[cfg(feature = "bigint")]
 use num_bigint::BigUint;
 
 /// A `u8` with IMP integer semantics.
