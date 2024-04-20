@@ -2,7 +2,6 @@
 members = ["lexer", "int", "parser", "tree", "ast"]
 
 [workspace.package]
-version = "0.2.0"
 repository = "https://github.com/eikopf/impc"
 license = "MIT"
 keywords = ["compiler", "interpreter"]
@@ -13,7 +12,7 @@ name = "impc"
 edition = "2021"
 description = "A compiler for the IMP programming language"
 readme = "README.md"
-version.workspace = true
+version = "0.2.1"
 repository.workspace = true
 license.workspace = true
 keywords.workspace = true
