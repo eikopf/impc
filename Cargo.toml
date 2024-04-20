@@ -2,6 +2,11 @@
 name = "impc"
 version = "0.1.0"
 edition = "2021"
+readme = "README.md"
+respository = "github.com/eikopf/impc"
+license = "MIT"
+keywords = ["compiler", "interpreter"]
+categories = ["compilers", "parser-implementations"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

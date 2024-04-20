@@ -1,9 +1,8 @@
 # `impc`
 > A compiler for the IMP programming language.
+Currently, `impc run <program>` will parse the given program and invoke a valid tree-walk interpreter; in this condition it is ready to use for the relatively simple task of executing IMP programs. The development focus has shifted to implementing a minimal optimising backend targeting LLVM, which should supersede the interpreter when feature-complete.
 
 ## Installation and Usage
-> As of 17/04/2024, `impc` has not been published to [crates.io](https://crates.io).
-
 Assuming you have a Rust toolchain installed on your system (if not, follow [these instructions](https://rustup.rs)), then `impc` can be installed using `cargo install`.
 
 ```sh
