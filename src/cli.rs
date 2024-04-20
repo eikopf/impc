@@ -64,8 +64,9 @@ enum CliSubCommand {
 #[derive(Debug, Clone, FromArgs)]
 #[argh(subcommand, name = "run")]
 struct Run {
-    /// define a set of variable bindings via a comma-separated list
-    /// (e.g. {{ X: 2, Y: 0 }}), where the empty set is given by {{}}
+    /// define a set of variable bindings to use during execution
+    /// with a comma-separated list (e.g. {{ X: 2, Y: 0 }}), with 
+    /// the empty set given by {{}}
     #[argh(option, long = "let", short = 'l')]
     bindings: Option<Bindings>,
 
