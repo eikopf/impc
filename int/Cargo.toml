@@ -1,12 +1,15 @@
 [package]
 name = "imp_int"
 edition = "2021"
-version = "0.2.0"
+version = "0.3.0"
 description = "A collection of thinly-wrapped integer types modelling IMP integer semantics"
 repository.workspace = true
 license.workspace = true
 keywords.workspace = true
 categories.workspace = true
+
+[features]
+bigint = []
 
 [dependencies]
 num-bigint = "0.4.4"

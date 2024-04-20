@@ -1,34 +1,338 @@
-//! Well-formed IMP integer semantics.
-
-use std::{
-    fmt::{Binary, Display, LowerExp, LowerHex, Octal, UpperExp, UpperHex},
-    ops::{Add, Deref, Div, Mul, Rem, Sub},
-    str::FromStr,
-};
+//! Thinly-wrapped integer types modelling IMP integer semantics.
+//!
+//! In a general sense, an IMP integer is just an unsigned integer with addition and multiplication
+//! defined in the normal sense, and where subtraction is defined to saturate at 0. However, this
+//! is complicated by the fact that IMP does not define integer overflow; it forces implementations
+//! to decide _how_ correct they wish to be.
+//!
+//! For this reason, the types in this crate implement _checked_ addition and multiplication in
+//! both debug and release builds (excluding `ImpBigInt`, which avoids these checks by being
+//! practically unbounded).
 
 use num_bigint::BigUint;
-use num_traits::{Bounded, ConstOne, ConstZero, Num, One, SaturatingSub, Unsigned, Zero};
 
-/// A `usize` conforming to IMP semantics.
-pub type ImpSize = ImpInt<usize>;
-/// A `u8` conforming to IMP semantics.
-pub type Imp8 = ImpInt<u8>;
-/// A `u16` conforming to IMP semantics.
-pub type Imp16 = ImpInt<u16>;
-/// A `u32` conforming to IMP semantics.
-pub type Imp32 = ImpInt<u32>;
-/// A `u64` conforming to IMP semantics.
-pub type Imp64 = ImpInt<u64>;
-/// A `u128` conforming to IMP semantics.
-pub type Imp128 = ImpInt<u128>;
-/// An arbitrary-precision unsigned integer conforming
-/// to IMP semantics. Its maximum value is architecture
-/// dependent, but is guaranteed to be at least `32^(2^31)` 
-/// on 32-bit targets and at least `32^(2^63)` on 64-bit
-/// targets.
-pub type ImpBigInt = ImpInt<BigUint>;
+/// A `u8` with IMP integer semantics.
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[repr(transparent)]
+pub struct Imp8(u8);
+/// A `u16` with IMP integer semantics.
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[repr(transparent)]
+pub struct Imp16(u16);
+/// A `u32` with IMP integer semantics.
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[repr(transparent)]
+pub struct Imp32(u32);
+/// A `u64` with IMP integer semantics.
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[repr(transparent)]
+pub struct Imp64(u64);
+/// A `u128` with IMP integer semantics.
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[repr(transparent)]
+pub struct Imp128(u128);
+/// A `usize` with IMP integer semantics.
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[repr(transparent)]
+pub struct ImpSize(usize);
+/// An arbitrary-precision integer with IMP integer semantics.
+#[cfg(feature = "bigint")]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[repr(transparent)]
+pub struct ImpBigInt(BigUint);
 
-impl Add for ImpBigInt {
+#[cfg(feature = "bigint")]
+macro_rules! imp_bigint_conversion_impls {
+    ($($int:ty => $prim:ty),+) => {
+        $(
+            impl std::convert::From<$int> for ImpBigInt {
+                fn from(value: $int) -> Self {
+                    Self(value.0.into())
+                }
+            }
+
+            impl std::convert::TryFrom<ImpBigInt> for $int {
+                type Error = <$prim as std::convert::TryFrom<BigUint>>::Error;
+
+                fn try_from(value: ImpBigInt) -> Result<Self, Self::Error> {
+                    value.try_into().map(Self)
+                }
+            }
+        )+
+    };
+}
+
+/// Generates `From` impls for a `$target` type and the listed primitive `$source` types.
+macro_rules! from_impls {
+    ($target:ty => { $( $source:ty ),+ }) => {
+        $(
+            impl std::convert::From<$source> for $target {
+                fn from(value: $source) -> Self {
+                    Self(value.into())
+                }
+            }
+        )+
+    };
+}
+
+/// Generates `TryFrom` impls for a `$target` type and the listed primitive `$source` types,
+/// with the underlying primitive type given in a `where $int` clause after the `$target`.
+macro_rules! try_from_impls {
+    ($target:ty where $int:ty => { $( $source:ty ),+ }) => {
+        $(
+            impl std::convert::TryFrom<$source> for $target {
+                type Error = <$int as std::convert::TryFrom<$source>>::Error;
+
+                fn try_from(value: $source) -> Result<Self, Self::Error> {
+                    <$int>::try_from(value).map(Self)
+                }
+            }
+        )+
+    };
+}
+
+/// Generates `From` impls for a `$source` type and the listed primitive `$target` types.
+macro_rules! into_prim_impls {
+    ($source:ty => { $( $target:ty ),+ }) => {
+        $(
+            impl std::convert::From<$source> for $target {
+                fn from(value: $source) -> Self {
+                    value.0.into()
+                }
+            }
+        )+
+    };
+}
+
+/// Generates `TryFrom` impls for a `$source` type and the listed primitive `$target` types,
+/// with the underlying primitive type given in a `where $int` clause after the `$source`.
+macro_rules! try_into_prim_impls {
+    ($source:ty where $int:ty => { $( $target:ty ),+ }) => {
+        $(
+            impl std::convert::TryFrom<$source> for $target {
+                type Error = <$target as std::convert::TryFrom<$int>>::Error;
+
+                fn try_from(value: $source) -> Result<Self, Self::Error> {
+                    value.0.try_into()
+                }
+            }
+        )+
+    };
+}
+
+/// Generates checked impls for `Add`, `Mul`, and `Sub`.
+macro_rules! imp_checked_op_impls {
+    ($int:ty => $name:ty) => {
+        impl std::ops::Add for $name {
+            type Output = Self;
+
+            fn add(self, rhs: Self) -> Self::Output {
+                self.0
+                    .checked_add(rhs.0)
+                    .map(Self)
+                    .expect("attempted addition which would have caused integer overflow")
+            }
+        }
+
+        impl std::ops::Mul for $name {
+            type Output = Self;
+
+            fn mul(self, rhs: Self) -> Self::Output {
+                self.0
+                    .checked_mul(rhs.0)
+                    .map(Self)
+                    .expect("attempted multiplication which would have caused integer overflow")
+            }
+        }
+
+        impl std::ops::Sub for $name {
+            type Output = Self;
+
+            fn sub(self, rhs: Self) -> Self {
+                Self(self.0.saturating_sub(rhs.0))
+            }
+        }
+    };
+
+    ($($int:ty => $name:ty),+) => {
+        $(
+            imp_checked_op_impls!($int => $name);
+        )+
+    };
+}
+
+/// Generates the bulk of the impls for the types in this crate.
+macro_rules! imp_int_impls {
+    ($int:ty => $name:ty) => {
+        impl std::fmt::Debug for $name  {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+                <$int as std::fmt::Debug>::fmt(&self.0, f)
+            }
+        }
+
+        impl std::fmt::Display for $name {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+                <$int as std::fmt::Display>::fmt(&self.0, f)
+            }
+        }
+
+        impl std::fmt::Binary for $name {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+                <$int as std::fmt::Display>::fmt(&self.0, f)
+            }
+        }
+
+        impl std::fmt::Octal for $name {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+                <$int as std::fmt::Display>::fmt(&self.0, f)
+            }
+        }
+
+        impl std::fmt::LowerHex for $name {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+                <$int as std::fmt::Display>::fmt(&self.0, f)
+            }
+        }
+
+        impl std::fmt::UpperHex for $name {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+                <$int as std::fmt::Display>::fmt(&self.0, f)
+            }
+        }
+
+        impl std::fmt::LowerExp for $name {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+                <$int as std::fmt::Display>::fmt(&self.0, f)
+            }
+        }
+
+        impl std::fmt::UpperExp for $name {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+                <$int as std::fmt::Display>::fmt(&self.0, f)
+            }
+        }
+
+        impl num_traits::Zero for $name {
+            fn zero() -> Self {
+                Self(<$int>::zero())
+            }
+
+            fn is_zero(&self) -> bool {
+                self.0.is_zero()
+            }
+        }
+
+        impl num_traits::One for $name {
+            fn one() -> Self {
+                Self(<$int>::one())
+            }
+        }
+
+        impl std::str::FromStr for $name {
+            type Err = <$int as std::str::FromStr>::Err;
+
+            fn from_str(s: &str) -> Result<Self, Self::Err> {
+                <$int as std::str::FromStr>::from_str(s).map(Self)
+            }
+        }
+    };
+
+    ($($int:ty => $name:ty),+) => {
+        $(
+            imp_int_impls!($int => $name);
+        )+
+    };
+
+}
+
+// boilerplate to add conversions between ImpBigInt and the other Imp* types
+#[cfg(feature = "bigint")]
+imp_bigint_conversion_impls!(
+    Imp8 => u8,
+    Imp16 => u16,
+    Imp32 => u32,
+    Imp64 => u64,
+    Imp128 => u128,
+    ImpSize => usize
+);
+
+// FROM IMPLS
+
+// total mapping from arbitrary types to imp integers
+from_impls!(Imp8 => { u8 });
+from_impls!(Imp16 => { u8, u16, Imp8 });
+from_impls!(Imp32 => { u8, u16, u32, Imp8, Imp16 });
+from_impls!(Imp64 => { u8, u16, u32, u64, Imp8, Imp16, Imp32 });
+from_impls!(Imp128 => { u8, u16, u32, u64, u128, Imp8, Imp16, Imp32, Imp64 });
+from_impls!(ImpSize => { u8, u16, usize, Imp8, Imp16 });
+#[cfg(feature = "bigint")]
+from_impls!(ImpBigInt => { u8, u16, u32, u64, u128, usize });
+
+// total mapping from imp integers to primitive types
+into_prim_impls!(Imp8 => { u8, u16, i16, u32, i32, u64, i64, u128, i128, usize, isize });
+into_prim_impls!(Imp16 => { u16, u32, i32, u64, i64, u128, i128, usize });
+into_prim_impls!(Imp32 => { u32, u64, i64, u128, i128 });
+into_prim_impls!(Imp64 => { u64, u128, i128 });
+into_prim_impls!(Imp128 => { u128 });
+into_prim_impls!(ImpSize => { usize });
+
+// TRY_FROM IMPLS
+
+// partial mapping from arbitrary types to imp integers
+try_from_impls!(Imp8 where u8 => {
+    i8, u16, i16, u32, i32, u64, i64, u128, i128, usize, isize, Imp16, Imp32, Imp64, Imp128, ImpSize
+});
+try_from_impls!(Imp16 where u16 => {
+    i8, i16, u32, i32, u64, i64, u128, i128, usize, isize, Imp32, Imp64, Imp128, ImpSize
+});
+try_from_impls!(Imp32 where u32 => {
+    i8, i16, i32, u64, i64, u128, i128, usize, isize, Imp64, Imp128, ImpSize
+});
+try_from_impls!(Imp64 where u64 => {
+    i8, i16, i32, i64, u128, i128, usize, isize, Imp128, ImpSize
+});
+try_from_impls!(Imp128 where u128 => { i8, i16, i32, i64, i128, usize, isize, ImpSize });
+try_from_impls!(ImpSize where usize => {
+    i8, i16, u32, i32, u64, i64, u128, i128, isize, Imp32, Imp64, Imp128
+});
+#[cfg(feature = "bigint")]
+try_from_impls!(ImpBigInt where BigUint => { i8, i16, i32, i64, i128, isize });
+
+// partial mapping from imp integers to primitive integers
+try_into_prim_impls!(Imp8 where u8 => { i8 });
+try_into_prim_impls!(Imp16 where u16 => { u8, i8, i16 });
+try_into_prim_impls!(Imp32 where u32 => { u8, i8, u16, i16, i32, usize, isize });
+try_into_prim_impls!(Imp64 where u64 => { u8, i8, u16, i16, u32, i32, i64, usize, isize });
+try_into_prim_impls!(Imp128 where u128 => { u8, i8, u16, i16, u32, i32, u64, i64, i128, usize, isize });
+try_into_prim_impls!(ImpSize where usize => { u8, i8, u16, i16, u32, i32, u64, i64, u128, i128, isize });
+#[cfg(feature = "bigint")]
+try_into_prim_impls!(ImpBigInt where BigUint => {
+    u8, i8, u16, i16, u32, i32, u64, i64, u128, i128, usize, isize
+});
+
+imp_checked_op_impls!(
+    u8 => Imp8,
+    u16 => Imp16,
+    u32 => Imp32,
+    u64 => Imp64,
+    u128 => Imp128,
+    usize => ImpSize
+);
+
+imp_int_impls!(
+    u8 => Imp8,
+    u16 => Imp16,
+    u32 => Imp32,
+    u64 => Imp64,
+    u128 => Imp128,
+    usize => ImpSize
+);
+
+#[cfg(feature = "bigint")]
+imp_int_impls!(BigUint => ImpBigInt);
+
+#[cfg(feature = "bigint")]
+impl std::ops::Add for ImpBigInt {
     type Output = Self;
 
     fn add(self, rhs: Self) -> Self::Output {
@@ -36,7 +340,8 @@ impl Add for ImpBigInt {
     }
 }
 
-impl Mul for ImpBigInt {
+#[cfg(feature = "bigint")]
+impl std::ops::Mul for ImpBigInt {
     type Output = Self;
 
     fn mul(self, rhs: Self) -> Self::Output {
@@ -44,280 +349,14 @@ impl Mul for ImpBigInt {
     }
 }
 
-impl Sub for ImpBigInt {
+#[cfg(feature = "bigint")]
+impl std::ops::Sub for ImpBigInt {
     type Output = Self;
 
     fn sub(self, rhs: Self) -> Self::Output {
-        // BigUint doesn't implement SaturatingSub, so this
-        // manual check is required
-        Self(match self.0 > rhs.0 {
-            true => self.0 - rhs.0,
-            false => BigUint::zero(),
-        })
-    }
-}
-
-/// Creates `impl` blocks with associated constants for the given `ImpInt<$int>` types.
-macro_rules! imp_int_impls {
-    ($int:ty) => {
-        impl ImpInt<$int> {
-            /// The minimum value representable by this type, i.e. zero.
-            pub const MIN: Self = Self(<$int>::MIN);
-            /// The maximum value representable by this type.
-            pub const MAX: Self = Self(<$int>::MAX);
+        match self > rhs {
+            true => Self(self.0 - rhs.0),
+            false => num_traits::Zero::zero(),
         }
-
-        impl std::ops::Add for ImpInt<$int> {
-            type Output = Self;
-
-            #[inline(always)]
-            fn add(self, rhs: Self) -> Self::Output {
-                Self(self.0.checked_add(rhs.0)
-                    .expect("attempted addition which would have caused integer overflow"))
-            }
-        }
-
-        impl std::ops::Mul for ImpInt<$int> {
-            type Output = Self;
-
-            #[inline(always)]
-            fn mul(self, rhs: Self) -> Self::Output {
-                Self(self.0.checked_mul(rhs.0)
-                    .expect("attempted multiplication which would have caused integer overflow"))
-            }
-        }
-
-        impl std::ops::Sub for ImpInt<$int> {
-            type Output = Self;
-
-            #[inline(always)]
-            fn sub(self, rhs: Self) -> Self::Output {
-                Self(self.0.saturating_sub(rhs.0))
-            }
-        }
-    };
-
-    ($head:ty, $($tail:ty),+) => {
-        imp_int_impls!($head);
-        imp_int_impls!($($tail),+);
-    };
-}
-
-/// Creates `impl TryFrom<usize>` blocks for the given `ImpInt<$int>` types.
-macro_rules! imp_int_try_from_usize {
-    ($int:ty) => {
-        impl std::convert::TryFrom<usize> for ImpInt<$int> {
-            type Error = <$int as TryFrom<usize>>::Error;
-
-            fn try_from(value: usize) -> Result<Self, Self::Error> {
-                value.try_into().map(Self)
-            }
-        }
-    };
-
-    ($head:ty, $($tail:ty),+) => {
-        imp_int_try_from_usize!($head);
-        imp_int_try_from_usize!($($tail),+);
-    };
-}
-
-imp_int_impls!(usize, u8, u16, u32, u64, u128);
-imp_int_try_from_usize!(u8, u16, u32, u64, u128, BigUint);
-
-/// A thin wrapper around an integer of type `T`, modifying
-/// its [`Sub`] implementation to conform to IMP's integer semantics.
-///
-/// # Guarantees
-/// - `ImpInt<T>` has the same memory layout and size as `T`;
-/// - `ImpInt<T>` implements [`Add`] and [`Mul`] by transparently deferring to the corresponding
-///    implementations on `T`;
-/// - The [`Sub`] implementation on `ImpInt<T>` defers to a transparent invocation of [`SaturatingSub`].
-///
-/// # Invalid Operations
-/// To implement [`Num`] and [`Unsigned`], a type is required to implement [`Div`] and [`Rem`].
-/// These operations are however entirely undefined for IMP integers, and so the corresponding
-/// implementations on [`ImpInt`] immediately panic when invoked.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-#[repr(transparent)]
-pub struct ImpInt<T>(T);
-
-impl<T> From<T> for ImpInt<T> {
-    #[inline(always)]
-    fn from(value: T) -> Self {
-        Self(value)
-    }
-}
-
-impl<T> Deref for ImpInt<T> {
-    type Target = T;
-
-    #[inline(always)]
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl<T: FromStr> FromStr for ImpInt<T> {
-    type Err = <T as FromStr>::Err;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        T::from_str(s).map(Self)
-    }
-}
-
-impl<T: Display> Display for ImpInt<T> {
-    #[inline(always)]
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        <T as Display>::fmt(&self.0, f)
-    }
-}
-
-impl<T: Binary> Binary for ImpInt<T> {
-    #[inline(always)]
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        <T as Binary>::fmt(&self.0, f)
-    }
-}
-
-impl<T: Octal> Octal for ImpInt<T> {
-    #[inline(always)]
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        <T as Octal>::fmt(&self.0, f)
-    }
-}
-
-impl<T: LowerHex> LowerHex for ImpInt<T> {
-    #[inline(always)]
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        <T as LowerHex>::fmt(&self.0, f)
-    }
-}
-
-impl<T: UpperHex> UpperHex for ImpInt<T> {
-    #[inline(always)]
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        <T as UpperHex>::fmt(&self.0, f)
-    }
-}
-
-impl<T: LowerExp> LowerExp for ImpInt<T> {
-    #[inline(always)]
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        <T as LowerExp>::fmt(&self.0, f)
-    }
-}
-
-impl<T: UpperExp> UpperExp for ImpInt<T> {
-    #[inline(always)]
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        <T as UpperExp>::fmt(&self.0, f)
-    }
-}
-
-impl<T: Zero> Zero for ImpInt<T>
-where
-    Self: Add<Output = Self>,
-{
-    #[inline(always)]
-    fn zero() -> Self {
-        Self(T::zero())
-    }
-
-    #[inline(always)]
-    fn is_zero(&self) -> bool {
-        T::is_zero(&self.0)
-    }
-}
-
-impl<T: ConstZero> ConstZero for ImpInt<T>
-where
-    Self: Add<Output = Self>,
-{
-    const ZERO: Self = Self(T::ZERO);
-}
-
-impl<T: One> One for ImpInt<T>
-where
-    Self: Mul<Output = Self>,
-{
-    #[inline(always)]
-    fn one() -> Self {
-        Self(T::one())
-    }
-}
-
-impl<T: ConstOne> ConstOne for ImpInt<T>
-where
-    Self: Mul<Output = Self>,
-{
-    const ONE: Self = Self(T::ONE);
-}
-
-impl<T: Bounded> Bounded for ImpInt<T> {
-    #[inline(always)]
-    fn min_value() -> Self {
-        Self(T::min_value())
-    }
-
-    #[inline(always)]
-    fn max_value() -> Self {
-        Self(T::max_value())
-    }
-}
-
-impl<T> Div for ImpInt<T> {
-    type Output = Self;
-
-    /// Division is undefined for IMP integers, and this
-    /// operation will immediately panic when invoked.
-    fn div(self, _rhs: Self) -> Self::Output {
-        panic!("Division is an invalid operation for IMP integers.")
-    }
-}
-
-impl<T> Rem for ImpInt<T> {
-    type Output = Self;
-
-    /// Modularity is undefined for IMP integers, and this
-    /// operation will immediately panic when invoked.
-    fn rem(self, _rhs: Self) -> Self::Output {
-        panic!("The modulo operation is undefined for IMP integers")
-    }
-}
-
-impl<T: Num + SaturatingSub> Num for ImpInt<T>
-where
-    Self: Add<Output = Self> + Mul<Output = Self> + Sub<Output = Self>,
-{
-    type FromStrRadixErr = <T as Num>::FromStrRadixErr;
-
-    #[inline(always)]
-    fn from_str_radix(str: &str, radix: u32) -> Result<Self, Self::FromStrRadixErr> {
-        <T as Num>::from_str_radix(str, radix).map(ImpInt)
-    }
-}
-
-impl<T: Num + Unsigned + SaturatingSub> Unsigned for ImpInt<T> where
-    Self: Add<Output = Self> + Mul<Output = Self> + Sub<Output = Self>
-{
-}
-
-impl<T> ImpInt<T> {
-    /// Consumes `self` and returns the underlying value.
-    #[inline(always)]
-    pub fn get(self) -> T {
-        self.0
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn sub_impl_is_saturating() {
-        let lhs = ImpInt::<usize>(10);
-        let rhs = ImpInt::<usize>(12);
-        assert_eq!(ImpSize::ZERO, lhs - rhs);
     }
 }
