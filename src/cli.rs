@@ -28,7 +28,7 @@ use nom::{
 
 use crate::{
     ast::Ast,
-    backend::interpreter::{Interpreter, State},
+    interpreter::{Interpreter, State},
     int::{ImpBigInt, ImpSize},
     tree::{Evaluator, Tree},
 };
