@@ -13,7 +13,7 @@ cargo install impc
 cargo install --git https://github.com/eikopf/impc.git
 ```
 
-With `impc` installed, run `impc --help` and `impc run --help` for the specific details of its usage. To run an IMP program, you can use the `impc run <filename>` command and optionally select a particular backend with the `--backend` option. You can also provide explicit bindings with the `--let` option if you want to avoid the interactive prompt stage.
+With `impc` installed, run `impc --help` and `impc run --help` for the specific details of its usage. To run an IMP program, you can use the `impc run <filename>` command and optionally provide explicit bindings with the `--let` option if you want to avoid the interactive prompt stage.
 
 ## IMP
 IMP is, largely speaking, a _deeply_ uninteresting language; its entire grammar can be given in a single 30-line ANTLR4 `.g4` file (see below), and its semantics are incredibly simple.
