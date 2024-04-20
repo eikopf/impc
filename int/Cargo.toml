@@ -1,7 +1,11 @@
 [package]
 name = "int"
-version = "0.1.0"
 edition = "2021"
+version.workspace = true
+repository.workspace = true
+license.workspace = true
+keywords.workspace = true
+categories.workspace = true
 
 [dependencies]
 num-bigint = "0.4.4"
