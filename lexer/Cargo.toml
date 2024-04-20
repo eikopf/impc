@@ -1,7 +1,7 @@
 [package]
 name = "imp_lexer"
 edition = "2021"
-version = "0.2.0"
+version = "0.2.1"
 description = "A nom-based lexer for the IMP programming language"
 repository.workspace = true
 license.workspace = true
