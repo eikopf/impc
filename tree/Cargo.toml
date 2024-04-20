@@ -1,7 +1,8 @@
 [package]
-name = "tree"
+name = "imp_tree"
 edition = "2021"
-version.workspace = true
+version = "0.2.0"
+description = "A collection of traits for modelling tree-structure in IMP programs"
 repository.workspace = true
 license.workspace = true
 keywords.workspace = true

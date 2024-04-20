@@ -61,19 +61,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "96d30a06541fbafbc7f82ed10c06164cfbd2c401138f6addd8404629c4b16711"
 
 [[package]]
-name = "ast"
-version = "0.2.0"
-dependencies = [
- "imp_lexer",
- "imp_parser",
- "int",
- "nom",
- "nom-supreme",
- "thiserror",
- "tree",
-]
-
-[[package]]
 name = "autocfg"
 version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -150,10 +137,31 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4271d37baee1b8c7e4b708028c57d816cf9d2434acb33a549475f78c181f6253"
 
 [[package]]
+name = "imp_ast"
+version = "0.2.0"
+dependencies = [
+ "imp_int",
+ "imp_lexer",
+ "imp_parser",
+ "imp_tree",
+ "nom",
+ "nom-supreme",
+ "thiserror",
+]
+
+[[package]]
+name = "imp_int"
+version = "0.2.0"
+dependencies = [
+ "num-bigint",
+ "num-traits",
+]
+
+[[package]]
 name = "imp_lexer"
 version = "0.2.0"
 dependencies = [
- "int",
+ "imp_int",
  "nom",
 ]
 
@@ -161,12 +169,16 @@ dependencies = [
 name = "imp_parser"
 version = "0.2.0"
 dependencies = [
+ "imp_int",
  "imp_lexer",
- "int",
+ "imp_tree",
  "nom",
  "num-traits",
- "tree",
 ]
+
+[[package]]
+name = "imp_tree"
+version = "0.2.0"
 
 [[package]]
 name = "impc"
@@ -174,11 +186,11 @@ version = "0.2.0"
 dependencies = [
  "anyhow",
  "argh",
- "ast",
  "better-panic",
- "int",
+ "imp_ast",
+ "imp_int",
+ "imp_tree",
  "nom",
- "tree",
 ]
 
 [[package]]
@@ -186,14 +198,6 @@ name = "indent_write"
 version = "2.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0cfe9645a18782869361d9c8732246be7b410ad4e919d3609ebabdac00ba12c3"
-
-[[package]]
-name = "int"
-version = "0.2.0"
-dependencies = [
- "num-bigint",
- "num-traits",
-]
 
 [[package]]
 name = "joinery"
@@ -369,10 +373,6 @@ dependencies = [
  "quote",
  "syn",
 ]
-
-[[package]]
-name = "tree"
-version = "0.2.0"
 
 [[package]]
 name = "unicode-ident"
