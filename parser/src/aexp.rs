@@ -46,14 +46,14 @@ use std::{
 use nom::{branch::alt, combinator::fail, sequence::delimited, IResult, Parser};
 use num_traits::Unsigned;
 
-use crate::{
-    int::ImpSize,
-    lexer::token::Token,
-    tree::{NodeCount, Tree},
-};
+use int::ImpSize;
+use lexer::token::Token;
+use tree::{NodeCount, Tree};
 
 use super::{
-    expr::Expr, util::{binary_expr, token}, ParserError, ParserInput
+    expr::Expr,
+    util::{binary_expr, token},
+    ParserError, ParserInput,
 };
 
 /// An arithmetic expression.
@@ -290,7 +290,7 @@ fn parens<'buf, 'src, T: 'buf + Clone + Eq>(
 mod tests {
     use nom::sequence::separated_pair;
 
-    use crate::lexer::token::Tokens;
+    use lexer::token::Tokens;
 
     use super::*;
 

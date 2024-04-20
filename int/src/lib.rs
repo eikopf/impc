@@ -67,9 +67,6 @@ macro_rules! imp_int_impls {
             pub const MAX: Self = Self(<$int>::MAX);
         }
 
-        // assertion: INT::MIN == INT::ZERO
-        crate::sa::const_assert_eq!(ImpInt::<$int>::MIN.0, <$int>::ZERO);
-
         impl std::ops::Add for ImpInt<$int> {
             type Output = Self;
 

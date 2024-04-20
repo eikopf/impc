@@ -52,7 +52,9 @@ use nom::{
     IResult, Parser,
 };
 
-use crate::{int::ImpSize, lexer::token::Token, tree::Tree};
+use tree::Tree;
+use lexer::token::Token;
+use int::ImpSize;
 
 use super::{
     aexp::{aexp, Aexp},
@@ -248,12 +250,15 @@ fn skip<'buf, 'src, T: PartialEq>(input: ParserInput<'buf, 'src, T>) -> CmdResul
 fn assign<'buf, 'src, T: Clone + Eq>(
     input: ParserInput<'buf, 'src, T>,
 ) -> CmdResult<'buf, 'src, T> {
-    context("expected assignment command", binary_expr(
-        var,
-        token(&Token::Assign),
-        context("expected an arithmetic expression after :=", cut(aexp)),
-        Cmd::Assign,
-    ))
+    context(
+        "expected assignment command",
+        binary_expr(
+            var,
+            token(&Token::Assign),
+            context("expected an arithmetic expression after :=", cut(aexp)),
+            Cmd::Assign,
+        ),
+    )
     .parse(input)
 }
 
@@ -323,7 +328,7 @@ fn var<'buf, 'src, T>(
 
 #[cfg(test)]
 mod tests {
-    use crate::lexer::token::Tokens;
+    use lexer::token::Tokens;
 
     use super::*;
 

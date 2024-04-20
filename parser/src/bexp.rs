@@ -39,7 +39,9 @@ use nom::{
     IResult, Parser,
 };
 
-use crate::{int::ImpSize, lexer::token::Token, tree::Tree};
+use int::ImpSize;
+use lexer::token::Token;
+use tree::Tree;
 
 use super::{
     aexp::{aexp, Aexp},
@@ -253,7 +255,7 @@ fn proposition<'buf, 'src, T: Clone + Eq>(
 
 #[cfg(test)]
 mod tests {
-    use crate::lexer::token::Tokens;
+    use lexer::token::Tokens;
 
     use super::*;
 

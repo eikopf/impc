@@ -4,15 +4,7 @@
 #![warn(missing_docs)]
 #![warn(clippy::missing_docs_in_private_items)]
 
-extern crate static_assertions as sa;
-
-pub mod ast;
-pub mod cli;
-pub mod int;
-pub mod interpreter;
-pub mod lexer;
-pub mod parser;
-pub mod tree;
+mod cli;
 
 fn main() -> anyhow::Result<()> {
     // register custom panic handler

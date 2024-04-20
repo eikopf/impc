@@ -12,7 +12,7 @@
 
 use nom::error::VerboseError;
 
-use crate::lexer::token::{Token, Tokens};
+use lexer::token::{Token, Tokens};
 
 pub mod aexp;
 pub mod bexp;

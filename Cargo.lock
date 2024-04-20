@@ -61,6 +61,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "96d30a06541fbafbc7f82ed10c06164cfbd2c401138f6addd8404629c4b16711"
 
 [[package]]
+name = "ast"
+version = "0.1.0"
+dependencies = [
+ "int",
+ "lexer",
+ "nom",
+ "nom-supreme",
+ "parser",
+ "thiserror",
+ "tree",
+]
+
+[[package]]
 name = "autocfg"
 version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -142,13 +155,11 @@ version = "0.2.0"
 dependencies = [
  "anyhow",
  "argh",
+ "ast",
  "better-panic",
+ "int",
  "nom",
- "nom-supreme",
- "num-bigint",
- "num-traits",
- "static_assertions",
- "thiserror",
+ "tree",
 ]
 
 [[package]]
@@ -156,6 +167,14 @@ name = "indent_write"
 version = "2.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0cfe9645a18782869361d9c8732246be7b410ad4e919d3609ebabdac00ba12c3"
+
+[[package]]
+name = "int"
+version = "0.1.0"
+dependencies = [
+ "num-bigint",
+ "num-traits",
+]
 
 [[package]]
 name = "joinery"
@@ -168,6 +187,14 @@ name = "lazy_static"
 version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e2abad23fbc42b3700f2f279844dc832adb2b2eb069b2df918f455c4e18cc646"
+
+[[package]]
+name = "lexer"
+version = "0.1.0"
+dependencies = [
+ "int",
+ "nom",
+]
 
 [[package]]
 name = "libc"
@@ -258,6 +285,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "parser"
+version = "0.1.0"
+dependencies = [
+ "int",
+ "lexer",
+ "nom",
+ "num-traits",
+ "tree",
+]
+
+[[package]]
 name = "proc-macro2"
 version = "1.0.78"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -302,12 +340,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "static_assertions"
-version = "1.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
-
-[[package]]
 name = "syn"
 version = "2.0.48"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -337,6 +369,10 @@ dependencies = [
  "quote",
  "syn",
 ]
+
+[[package]]
+name = "tree"
+version = "0.1.0"
 
 [[package]]
 name = "unicode-ident"

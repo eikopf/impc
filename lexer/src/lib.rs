@@ -77,7 +77,7 @@ pub fn int<T: FromStr>(input: &str) -> LexResult<'_, T> {
 mod tests {
     use nom::error::convert_error;
 
-    use crate::int::ImpSize;
+    use int::ImpSize;
 
     use super::*;
 

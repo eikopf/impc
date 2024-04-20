@@ -11,10 +11,8 @@ use std::{
 
 use thiserror::Error;
 
-use crate::{
-    parser::{aexp::Aexp, bexp::Bexp, cmd::Cmd},
-    tree::Evaluator,
-};
+use parser::{aexp::Aexp, bexp::Bexp, cmd::Cmd};
+use tree::Evaluator;
 
 /// The state of an interpreter.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -38,7 +36,11 @@ where
             f,
             "{{\n{}}}",
             sorted_keys.into_iter().fold(String::new(), |mut buf, key| {
-                let _ = writeln!(buf, "\t{key}: {}, ", self.0.get(key).expect("key is defined"));
+                let _ = writeln!(
+                    buf,
+                    "\t{key}: {}, ",
+                    self.0.get(key).expect("key is defined")
+                );
                 buf
             })
         )
@@ -237,7 +239,11 @@ fn join<V, T, U>(
 
 #[cfg(test)]
 mod tests {
-    use crate::{ast::Ast, int::ImpSize, lexer::token::Tokens, parser::aexp::aexp, tree::Tree};
+    use crate::Ast;
+    use int::ImpSize;
+    use lexer::token::Tokens;
+    use parser::aexp::aexp;
+    use tree::Tree;
 
     use super::*;
 
