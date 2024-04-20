@@ -18,6 +18,10 @@ license.workspace = true
 keywords.workspace = true
 categories.workspace = true
 
+# note for future publications: cargo will just assume that any crate
+# on crates.io with a matching name and version number is the correct
+# crate, so explicitly defining package names is MANDATORY
+
 [dependencies]
 anyhow = "1.0.82"
 argh = "0.1.12"
