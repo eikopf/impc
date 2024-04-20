@@ -64,11 +64,11 @@ checksum = "96d30a06541fbafbc7f82ed10c06164cfbd2c401138f6addd8404629c4b16711"
 name = "ast"
 version = "0.2.0"
 dependencies = [
+ "imp_lexer",
+ "imp_parser",
  "int",
- "lexer",
  "nom",
  "nom-supreme",
- "parser",
  "thiserror",
  "tree",
 ]
@@ -150,6 +150,25 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4271d37baee1b8c7e4b708028c57d816cf9d2434acb33a549475f78c181f6253"
 
 [[package]]
+name = "imp_lexer"
+version = "0.2.0"
+dependencies = [
+ "int",
+ "nom",
+]
+
+[[package]]
+name = "imp_parser"
+version = "0.2.0"
+dependencies = [
+ "imp_lexer",
+ "int",
+ "nom",
+ "num-traits",
+ "tree",
+]
+
+[[package]]
 name = "impc"
 version = "0.2.0"
 dependencies = [
@@ -187,14 +206,6 @@ name = "lazy_static"
 version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e2abad23fbc42b3700f2f279844dc832adb2b2eb069b2df918f455c4e18cc646"
-
-[[package]]
-name = "lexer"
-version = "0.2.0"
-dependencies = [
- "int",
- "nom",
-]
 
 [[package]]
 name = "libc"
@@ -282,17 +293,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a6a622008b6e321afc04970976f62ee297fdbaa6f95318ca343e3eebb9648441"
 dependencies = [
  "memchr",
-]
-
-[[package]]
-name = "parser"
-version = "0.2.0"
-dependencies = [
- "int",
- "lexer",
- "nom",
- "num-traits",
- "tree",
 ]
 
 [[package]]

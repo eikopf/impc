@@ -1,5 +1,5 @@
 [package]
-name = "parser"
+name = "imp_parser"
 edition = "2021"
 version.workspace = true
 repository.workspace = true
@@ -9,7 +9,7 @@ categories.workspace = true
 
 [dependencies]
 int = { version = "0.2.0", path = "../int" }
-lexer = { version = "0.2.0", path = "../lexer" }
+lexer = { version = "0.2.0", path = "../lexer", package = "imp_lexer" }
 nom = "7.1.3"
 num-traits = "0.2.18"
 tree = { version = "0.2.0", path = "../tree" }

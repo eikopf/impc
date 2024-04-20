@@ -1,5 +1,5 @@
 [package]
-name = "lexer"
+name = "imp_lexer"
 edition = "2021"
 version.workspace = true
 repository.workspace = true
