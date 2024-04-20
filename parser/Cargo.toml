@@ -1,7 +1,7 @@
 [package]
 name = "imp_parser"
 edition = "2021"
-version = "0.2.1"
+version = "0.2.2"
 description = "A nom-based parser for the IMP programming language"
 repository.workspace = true
 license.workspace = true
@@ -10,7 +10,7 @@ categories.workspace = true
 
 [dependencies]
 int = { version = "0.2.0", path = "../int", package = "imp_int" }
-lexer = { version = "0.2.0", path = "../lexer", package = "imp_lexer" }
+lexer = { version = "0.2.1", path = "../lexer", package = "imp_lexer" }
 nom = "7.1.3"
 num-traits = "0.2.18"
 tree = { version = "0.2.0", path = "../tree", package = "imp_tree" }
