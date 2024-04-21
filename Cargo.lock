@@ -151,7 +151,7 @@ dependencies = [
 
 [[package]]
 name = "imp_int"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "num-bigint",
  "num-traits",

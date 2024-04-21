@@ -1,7 +1,7 @@
 [package]
 name = "imp_int"
 edition = "2021"
-version = "0.3.0"
+version = "0.3.1"
 description = "A collection of thinly-wrapped integer types modelling IMP integer semantics"
 repository.workspace = true
 license.workspace = true
