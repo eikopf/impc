@@ -9,6 +9,8 @@
 //! both debug and release builds (excluding `ImpBigInt`, which avoids these checks by being
 //! practically unbounded).
 
+#![feature(doc_cfg)]
+
 #[cfg(feature = "bigint")]
 use num_bigint::BigUint;
 
@@ -38,6 +40,7 @@ pub struct Imp128(u128);
 pub struct ImpSize(usize);
 /// An arbitrary-precision integer with IMP integer semantics.
 #[cfg(feature = "bigint")]
+#[doc(cfg(feature = "bigint"))]
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
 #[repr(transparent)]
 pub struct ImpBigInt(BigUint);
@@ -46,12 +49,14 @@ pub struct ImpBigInt(BigUint);
 macro_rules! imp_bigint_conversion_impls {
     ($($int:ty => $prim:ty),+) => {
         $(
+            #[doc(cfg(feature = "bigint"))]
             impl std::convert::From<$int> for ImpBigInt {
                 fn from(value: $int) -> Self {
                     Self(value.0.into())
                 }
             }
 
+            #[doc(cfg(feature = "bigint"))]
             impl std::convert::TryFrom<ImpBigInt> for $int {
                 type Error = <$prim as std::convert::TryFrom<BigUint>>::Error;
 
@@ -333,6 +338,7 @@ imp_int_impls!(
 imp_int_impls!(BigUint => ImpBigInt);
 
 #[cfg(feature = "bigint")]
+#[doc(cfg(feature = "bigint"))]
 impl std::ops::Add for ImpBigInt {
     type Output = Self;
 
@@ -342,6 +348,7 @@ impl std::ops::Add for ImpBigInt {
 }
 
 #[cfg(feature = "bigint")]
+#[doc(cfg(feature = "bigint"))]
 impl std::ops::Mul for ImpBigInt {
     type Output = Self;
 
@@ -351,6 +358,7 @@ impl std::ops::Mul for ImpBigInt {
 }
 
 #[cfg(feature = "bigint")]
+#[doc(cfg(feature = "bigint"))]
 impl std::ops::Sub for ImpBigInt {
     type Output = Self;
 

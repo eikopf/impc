@@ -14,3 +14,7 @@ bigint = ["dep:num-bigint"]
 [dependencies]
 num-bigint = { version = "0.4.4", optional = true }
 num-traits = "0.2.18"
+
+[package.metadata.docs.rs]
+# enables features in documentation on docs.rs
+all-features = true
