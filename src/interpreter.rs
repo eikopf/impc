@@ -38,7 +38,11 @@ where
             f,
             "{{\n{}}}",
             sorted_keys.into_iter().fold(String::new(), |mut buf, key| {
-                let _ = writeln!(buf, "\t{key}: {}, ", self.0.get(key).expect("key is defined"));
+                let _ = writeln!(
+                    buf,
+                    "\t{key}: {}, ",
+                    self.0.get(key).expect("key is defined")
+                );
                 buf
             })
         )
@@ -246,8 +250,8 @@ mod tests {
         // state: { X => 4, Y => 0 }
         let interpreter: Interpreter<&str, ImpSize> = {
             let mut bindings = HashMap::new();
-            bindings.insert("X", 4.into());
-            bindings.insert("Y", 0.into());
+            bindings.insert("X", 4usize.into());
+            bindings.insert("Y", 0usize.into());
             Interpreter {
                 state: State(bindings),
             }
@@ -259,7 +263,7 @@ mod tests {
         eprintln!("parsed expr {expr}");
         let result = (&interpreter).eval(&expr);
         eprintln!("evaluation: expr = {}", result.clone().unwrap());
-        assert_eq!(result.unwrap(), ImpSize::from(24));
+        assert_eq!(result.unwrap(), ImpSize::from(24usize));
 
         // expr: (* (- Y 2) 12)
         let tokens: Tokens<_, ImpSize> = "(Y - 2) * 12".try_into().unwrap();
@@ -267,7 +271,7 @@ mod tests {
         eprintln!("parsed expr {expr}");
         let result = (&interpreter).eval(&expr);
         eprintln!("evaluation: expr = {}", result.clone().unwrap());
-        assert_eq!(result.unwrap(), 0.into());
+        assert_eq!(result.unwrap(), 0usize.into());
 
         // expr: (* (- Z 2) 12)
         // Z is unbound, so this should be an error
@@ -283,7 +287,7 @@ mod tests {
     fn check_complete_evaluator_impl() {
         let interpreter: Interpreter<_, ImpSize> = {
             let mut bindings = HashMap::new();
-            bindings.insert("X", 0.into());
+            bindings.insert("X", 0usize.into());
             Interpreter {
                 state: State(bindings),
             }
@@ -307,9 +311,9 @@ mod tests {
 
         let result = ast.map(|root| interpreter.eval(&root));
         assert!(result.is_ok_and(|state| {
-            state.get(&"X").is_some_and(|&x| x == 1.into())
-                && state.get(&"Y").is_some_and(|&y| y == 7.into())
-                && state.get(&"Z").is_some_and(|&z| z == 1.into())
+            state.get(&"X").is_some_and(|&x| x == 1usize.into())
+                && state.get(&"Y").is_some_and(|&y| y == 7usize.into())
+                && state.get(&"Z").is_some_and(|&z| z == 1usize.into())
         }));
     }
 }
