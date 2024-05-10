@@ -26,11 +26,9 @@ use nom::{
     Finish, Parser,
 };
 
-use {
-    ast::{
-        interpreter::{Interpreter, State},
-        Ast,
-    },
+use crate::{
+    ast::Ast,
+    interpreter::{Interpreter, State},
     int::{ImpBigInt, ImpSize},
     tree::{Evaluator, Tree},
 };
@@ -61,13 +59,13 @@ enum CliSubCommand {
     Run(Run),
 }
 
-/// Runs an .imp file using a simple tree-walk interpreter. If variable bindings are not
+/// Runs an .imp file using a simple tree-walk interpreter. If variable bindings are not 
 /// given with the --let option, they will be assigned by an interactive prompt before execution.
 #[derive(Debug, Clone, FromArgs)]
 #[argh(subcommand, name = "run")]
 struct Run {
     /// define a set of variable bindings to use during execution
-    /// with a comma-separated list (e.g. {{ X: 2, Y: 0 }}), with
+    /// with a comma-separated list (e.g. {{ X: 2, Y: 0 }}), with 
     /// the empty set given by {{}}
     #[argh(option, long = "let", short = 'l')]
     bindings: Option<Bindings>,

@@ -1,32 +1,23 @@
-[workspace]
-members = ["lexer", "int", "parser", "tree", "ast"]
-
-[workspace.package]
-repository = "https://github.com/eikopf/impc"
-license = "MIT"
-keywords = ["compiler", "interpreter"]
-categories = ["compilers"]
-
 [package]
 name = "impc"
+version = "0.2.0"
 edition = "2021"
 description = "A compiler for the IMP programming language"
 readme = "README.md"
-version = "0.2.1"
-repository.workspace = true
-license.workspace = true
-keywords.workspace = true
-categories.workspace = true
+repository = "https://github.com/eikopf/impc"
+license = "MIT"
+keywords = ["compiler", "interpreter"]
+categories = ["compilers", "parser-implementations"]
 
-# note for future publications: cargo will just assume that any crate
-# on crates.io with a matching name and version number is the correct
-# crate, so explicitly defining package names is MANDATORY
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 anyhow = "1.0.82"
 argh = "0.1.12"
-ast = { version = "0.2.0", path = "ast", package = "imp_ast" }
 better-panic = "0.3.0"
-int = { version = "0.3.0", path = "int", package = "imp_int", features = ["bigint"] }
 nom = "7.1.3"
-tree = { version = "0.2.0", path = "tree", package = "imp_tree" }
+nom-supreme = "0.8.0"
+num-bigint = "0.4.4"
+num-traits = "0.2.18"
+static_assertions = "1.1.0"
+thiserror = "1.0.58"

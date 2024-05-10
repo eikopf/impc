@@ -39,9 +39,7 @@ use nom::{
     IResult, Parser,
 };
 
-use int::ImpSize;
-use lexer::token::Token;
-use tree::Tree;
+use crate::{int::ImpSize, lexer::token::Token, tree::Tree};
 
 use super::{
     aexp::{aexp, Aexp},
@@ -193,7 +191,7 @@ impl<V, T> Bexp<V, T> {
     }
 }
 
-/// The return type of parsers in the [`crate::bexp`] module.
+/// The return type of parsers in the [`crate::parser::bexp`] module.
 pub type BexpResult<'buf, 'src, T = usize> =
     IResult<ParserInput<'buf, 'src, T>, Bexp<&'src str, T>, ParserError<'buf, 'src, T>>;
 
@@ -255,7 +253,7 @@ fn proposition<'buf, 'src, T: Clone + Eq>(
 
 #[cfg(test)]
 mod tests {
-    use lexer::token::Tokens;
+    use crate::lexer::token::Tokens;
 
     use super::*;
 

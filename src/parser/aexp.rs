@@ -46,14 +46,14 @@ use std::{
 use nom::{branch::alt, combinator::fail, sequence::delimited, IResult, Parser};
 use num_traits::Unsigned;
 
-use int::ImpSize;
-use lexer::token::Token;
-use tree::{NodeCount, Tree};
+use crate::{
+    int::ImpSize,
+    lexer::token::Token,
+    tree::{NodeCount, Tree},
+};
 
 use super::{
-    expr::Expr,
-    util::{binary_expr, token},
-    ParserError, ParserInput,
+    expr::Expr, util::{binary_expr, token}, ParserError, ParserInput
 };
 
 /// An arithmetic expression.
@@ -226,7 +226,7 @@ impl<V, T> Aexp<V, T> {
     }
 }
 
-/// The return type of parsers in the [`crate::aexp`] module.
+/// The return type of parsers in the [`crate::parser::aexp`] module.
 pub type AexpResult<'buf, 'src, T = usize> =
     IResult<ParserInput<'buf, 'src, T>, Aexp<&'src str, T>, ParserError<'buf, 'src, T>>;
 
@@ -290,7 +290,7 @@ fn parens<'buf, 'src, T: 'buf + Clone + Eq>(
 mod tests {
     use nom::sequence::separated_pair;
 
-    use lexer::token::Tokens;
+    use crate::lexer::token::Tokens;
 
     use super::*;
 

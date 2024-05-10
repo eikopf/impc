@@ -16,14 +16,16 @@ use nom::{
     Finish, IResult, Parser,
 };
 
-use token::{Token, TokenRef};
+use token::Token;
+
+use self::token::TokenRef;
 
 pub mod symbol;
 pub mod token;
 
-/// The general error type produced by [`lexers`](crate).
+/// The general error type produced by [`crate::lexer`] parsers.
 pub type LexError<E> = VerboseError<E>;
-/// The general return type for [`lexers`](crate).
+/// The general return type for [`crate::lexer`] parsers.
 pub type LexResult<'src, T> = IResult<&'src str, TokenRef<'src, T>, LexError<&'src str>>;
 
 /// Converts a `LexError<&str>` into a `LexError<String>` using [`String::from`].
@@ -75,7 +77,7 @@ pub fn int<T: FromStr>(input: &str) -> LexResult<'_, T> {
 mod tests {
     use nom::error::convert_error;
 
-    use int::ImpSize;
+    use crate::int::ImpSize;
 
     use super::*;
 
